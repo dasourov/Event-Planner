@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="EventPlanner.AppHost/EventPlanner.AppHost.csproj" />
+  <Project Path="EventPlanner.Server/EventPlanner.Server.csproj" />
+  <Project Path="frontend/frontend.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+</Solution>
