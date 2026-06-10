@@ -1,10 +1,28 @@
+// Load environment variables from .env before building distributed application
+EnvLoader.Load();
+
 var builder = DistributedApplication.CreateBuilder(args);
 
-var mongodb = builder.AddMongoDB("mongodb");
-var db = mongodb.AddDatabase("eventplanner");
+// Retrieve MongoDB Connection String from Environment
+var connectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING");
+IResourceBuilder<IResourceWithConnectionString> db;
 
+if (!string.IsNullOrEmpty(connectionString))
+{
+    // Use the remote database connection string directly (e.g. MongoDB Atlas)
+    db = builder.AddConnectionString("mongodb", connectionString);
+}
+else
+{
+    // Fallback: Spin up a local MongoDB Container resource
+    var mongodb = builder.AddMongoDB("mongodb");
+    db = mongodb.AddDatabase("eventplanner");
+}
+
+// Pass configuration to the server backend
 var server = builder.AddProject<Projects.EventPlanner_Server>("server")
     .WithReference(db)
+    .WithEnvironment("Jwt__Secret", Environment.GetEnvironmentVariable("JWT_SECRET") ?? "super_secret_key_that_is_at_least_32_characters_long_12345!")
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints();
 
@@ -15,3 +33,32 @@ var webfrontend = builder.AddViteApp("webfrontend", "../frontend")
 server.PublishWithContainerFiles(webfrontend, "wwwroot");
 
 builder.Build().Run();
+
+// Robust helper loader to parse local .env files
+public static class EnvLoader
+{
+    public static void Load()
+    {
+        var dir = new System.IO.DirectoryInfo(System.IO.Directory.GetCurrentDirectory());
+        while (dir != null)
+        {
+            var envFile = System.IO.Path.Combine(dir.FullName, ".env");
+            if (System.IO.File.Exists(envFile))
+            {
+                foreach (var line in System.IO.File.ReadAllLines(envFile))
+                {
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                    var parts = line.Split('=', 2);
+                    if (parts.Length == 2)
+                    {
+                        var key = parts[0].Trim();
+                        var val = parts[1].Trim().Trim('"').Trim('\'');
+                        System.Environment.SetEnvironmentVariable(key, val);
+                    }
+                }
+                break;
+            }
+            dir = dir.Parent;
+        }
+    }
+}
