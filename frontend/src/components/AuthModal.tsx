@@ -5,7 +5,7 @@ interface AuthModalProps {
   onClose: () => void;
   activeTab: 'login' | 'register';
   onTabChange: (tab: 'login' | 'register') => void;
-  
+
   // Login input bindings
   loginEmail: string;
   onLoginEmailChange: (val: string) => void;
@@ -30,7 +30,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   activeTab,
   onTabChange,
-  
+
   loginEmail,
   onLoginEmailChange,
   loginPassword,
@@ -52,31 +52,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
       <div className="bg-white rounded-3xl max-w-sm w-full overflow-hidden border border-slate-200 shadow-2xl relative">
-        {/* Close Button */}
-        <button 
-          onClick={onClose}
-          className="absolute right-4 top-4 w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors"
-        >
-          <span className="material-symbols-outlined text-base">close</span>
-        </button>
+        
+        {/* Dedicated Modal Header */}
+        <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-100 bg-slate-50/50">
+          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Account Access</span>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-lg hover:bg-slate-200/60 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors"
+          >
+            <span className="material-symbols-outlined text-base leading-none">close</span>
+          </button>
+        </div>
 
         {/* Tab Selector */}
-        <div className="flex border-b border-slate-100 bg-slate-50/50">
+        <div className="flex border-b border-slate-100 bg-white">
           <button
             onClick={() => onTabChange('login')}
-            className={`flex-1 py-3 text-xs font-extrabold border-b-2 transition-colors ${
-              activeTab === 'login' ? 'border-[#4648d4] text-[#4648d4] bg-white' : 'border-transparent text-slate-400 hover:text-slate-700'
-            }`}
+            className={`flex-1 py-3 text-xs font-extrabold border-b-2 transition-colors ${activeTab === 'login' ? 'border-[#4648d4] text-[#4648d4] bg-white' : 'border-transparent text-slate-400 hover:text-slate-700'
+              }`}
           >
             Log In
           </button>
           <button
             onClick={() => onTabChange('register')}
-            className={`flex-1 py-3 text-xs font-extrabold border-b-2 transition-colors ${
-              activeTab === 'register' ? 'border-[#4648d4] text-[#4648d4] bg-white' : 'border-transparent text-slate-400 hover:text-slate-700'
-            }`}
+            className={`flex-1 py-3 text-xs font-extrabold border-b-2 transition-colors ${activeTab === 'register' ? 'border-[#4648d4] text-[#4648d4] bg-white' : 'border-transparent text-slate-400 hover:text-slate-700'
+              }`}
           >
-            Sign Up
+            Register
           </button>
         </div>
 
@@ -131,7 +133,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 
               <div className="space-y-1 text-left">
-                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Username Handle</label>
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Username</label>
                 <input
                   type="text"
                   required
@@ -178,12 +180,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 />
               </div>
 
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 bg-[#4648d4] hover:bg-[#3738bd] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-colors shadow-sm"
-                  >
-                    Register
-                  </button>
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-[#4648d4] hover:bg-[#3738bd] text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-colors shadow-sm"
+              >
+                Register
+              </button>
             </form>
           )}
         </div>
