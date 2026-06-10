@@ -1,0 +1,15 @@
+# Local secrets configuration
+.env
+.env.local
+
+# Visual Studio / Rider build cache
+.vs/
+bin/
+obj/
+*.user
+*.suo
+
+# Node dependencies and build artifacts
+node_modules/
+dist/
+.eslintcache

@@ -12,6 +12,8 @@ using EventPlanner.Server.Infrastructure.Repositories;
 using EventPlanner.Server.Infrastructure.Auth;
 using EventPlanner.Server.Infrastructure.SignalR;
 
+EnvLoader.Load();
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
@@ -34,9 +36,13 @@ builder.Services.AddSingleton<IMongoClient>(sp =>
     var connectionString = builder.Configuration.GetConnectionString("mongodb");
     if (string.IsNullOrEmpty(connectionString))
     {
+        connectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING");
+    }
+    if (string.IsNullOrEmpty(connectionString) || connectionString == "MONGODB_CONNECTION_STRING_PLACEHOLDER")
+    {
         connectionString = builder.Configuration["MongoDb:ConnectionString"];
     }
-    if (string.IsNullOrEmpty(connectionString))
+    if (string.IsNullOrEmpty(connectionString) || connectionString == "MONGODB_CONNECTION_STRING_PLACEHOLDER")
     {
         connectionString = "mongodb://localhost:27017";
     }
@@ -76,7 +82,11 @@ builder.Services.AddValidatorsFromAssembly(assembly);
 builder.Services.AddEndpoints();
 
 // Configure JWT Authentication
-var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "super_secret_key_that_is_at_least_32_characters_long_12345!";
+var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET");
+if (string.IsNullOrEmpty(jwtSecret))
+{
+    jwtSecret = builder.Configuration["Jwt:Secret"] ?? "super_secret_key_that_is_at_least_32_characters_long_12345!";
+}
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "EventPlanner";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "EventPlanner";
 
@@ -170,3 +180,31 @@ app.UseFileServer();
 app.Run();
 
 public partial class Program { }
+
+public static class EnvLoader
+{
+    public static void Load()
+    {
+        var dir = new System.IO.DirectoryInfo(System.IO.Directory.GetCurrentDirectory());
+        while (dir != null)
+        {
+            var envFile = System.IO.Path.Combine(dir.FullName, ".env");
+            if (System.IO.File.Exists(envFile))
+            {
+                foreach (var line in System.IO.File.ReadAllLines(envFile))
+                {
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                    var parts = line.Split('=', 2);
+                    if (parts.Length == 2)
+                    {
+                        var key = parts[0].Trim();
+                        var val = parts[1].Trim().Trim('"').Trim('\'');
+                        System.Environment.SetEnvironmentVariable(key, val);
+                    }
+                }
+                break;
+            }
+            dir = dir.Parent;
+        }
+    }
+}
