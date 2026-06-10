@@ -1,6 +1,29 @@
-@Server_HostAddress = http://localhost:5513
+@Server_HostAddress = http://localhost:5000
 
-GET {{Server_HostAddress}}/api/weatherforecast/
-Accept: application/json
+### Register a new user
+POST {{Server_HostAddress}}/api/auth/register
+Content-Type: application/json
 
-###
+{
+  "username": "testuser",
+  "email": "testuser@example.com",
+  "password": "Password123!"
+}
+
+### Login the registered user
+# @name login
+POST {{Server_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "password": "Password123!"
+}
+
+### Get Current User Profile (using token returned from login)
+@authToken = {{login.response.body.token}}
+GET {{Server_HostAddress}}/api/auth/me
+Authorization: Bearer {{authToken}}
+
+### Get Categories
+GET {{Server_HostAddress}}/api/categories

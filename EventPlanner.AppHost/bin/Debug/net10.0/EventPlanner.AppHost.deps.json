@@ -9,7 +9,8 @@
       "EventPlanner.AppHost/1.0.0": {
         "dependencies": {
           "Aspire.Hosting.AppHost": "13.1.0",
-          "Aspire.Hosting.JavaScript": "13.1.0"
+          "Aspire.Hosting.JavaScript": "13.1.0",
+          "Aspire.Hosting.MongoDB": "13.1.0"
         },
         "runtime": {
           "EventPlanner.AppHost.dll": {}
@@ -124,11 +125,56 @@
           }
         }
       },
+      "Aspire.Hosting.MongoDB/13.1.0": {
+        "dependencies": {
+          "AspNetCore.HealthChecks.MongoDb": "9.0.0",
+          "AspNetCore.HealthChecks.Uris": "9.0.0",
+          "Aspire.Hosting": "13.1.0",
+          "DnsClient": "1.8.0",
+          "Google.Protobuf": "3.33.0",
+          "Grpc.AspNetCore": "2.71.0",
+          "Grpc.Net.ClientFactory": "2.71.0",
+          "Humanizer.Core": "2.14.1",
+          "JsonPatch.Net": "3.3.0",
+          "KubernetesClient": "18.0.5",
+          "MongoDB.Driver": "3.5.0",
+          "Newtonsoft.Json": "13.0.4",
+          "Polly.Core": "8.6.4",
+          "Semver": "3.0.0",
+          "StreamJsonRpc": "2.22.23",
+          "System.IO.Hashing": "9.0.10"
+        },
+        "runtime": {
+          "lib/net8.0/Aspire.Hosting.MongoDB.dll": {
+            "assemblyVersion": "13.1.0.0",
+            "fileVersion": "13.100.25.61603"
+          }
+        }
+      },
+      "AspNetCore.HealthChecks.MongoDb/9.0.0": {
+        "dependencies": {
+          "MongoDB.Driver": "3.5.0"
+        },
+        "runtime": {
+          "lib/net8.0/HealthChecks.MongoDb.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.0.0"
+          }
+        }
+      },
       "AspNetCore.HealthChecks.Uris/9.0.0": {
         "runtime": {
           "lib/net8.0/HealthChecks.Uris.dll": {
             "assemblyVersion": "9.0.0.0",
             "fileVersion": "9.0.0.0"
+          }
+        }
+      },
+      "DnsClient/1.8.0": {
+        "runtime": {
+          "lib/net8.0/DnsClient.dll": {
+            "assemblyVersion": "1.8.0.0",
+            "fileVersion": "1.8.0.0"
           }
         }
       },
@@ -398,6 +444,29 @@
           }
         }
       },
+      "MongoDB.Bson/3.5.0": {
+        "runtime": {
+          "lib/net6.0/MongoDB.Bson.dll": {
+            "assemblyVersion": "3.5.0.0",
+            "fileVersion": "3.5.0.0"
+          }
+        }
+      },
+      "MongoDB.Driver/3.5.0": {
+        "dependencies": {
+          "DnsClient": "1.8.0",
+          "MongoDB.Bson": "3.5.0",
+          "SharpCompress": "0.30.1",
+          "Snappier": "1.0.0",
+          "ZstdSharp.Port": "0.7.3"
+        },
+        "runtime": {
+          "lib/net6.0/MongoDB.Driver.dll": {
+            "assemblyVersion": "3.5.0.0",
+            "fileVersion": "3.5.0.0"
+          }
+        }
+      },
       "Nerdbank.Streams/2.12.87": {
         "dependencies": {
           "Microsoft.VisualStudio.Threading.Only": "17.13.61",
@@ -431,6 +500,22 @@
           "lib/net5.0/Semver.dll": {
             "assemblyVersion": "3.0.0.0",
             "fileVersion": "3.0.0.0"
+          }
+        }
+      },
+      "SharpCompress/0.30.1": {
+        "runtime": {
+          "lib/net5.0/SharpCompress.dll": {
+            "assemblyVersion": "0.30.1.0",
+            "fileVersion": "0.30.1.0"
+          }
+        }
+      },
+      "Snappier/1.0.0": {
+        "runtime": {
+          "lib/net5.0/Snappier.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
           }
         }
       },
@@ -505,6 +590,14 @@
             "fileVersion": "16.3.0.0"
           }
         }
+      },
+      "ZstdSharp.Port/0.7.3": {
+        "runtime": {
+          "lib/net7.0/ZstdSharp.dll": {
+            "assemblyVersion": "0.7.3.0",
+            "fileVersion": "0.7.3.0"
+          }
+        }
       }
     }
   },
@@ -535,12 +628,33 @@
       "path": "aspire.hosting.javascript/13.1.0",
       "hashPath": "aspire.hosting.javascript.13.1.0.nupkg.sha512"
     },
+    "Aspire.Hosting.MongoDB/13.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-AcMgMsoP5Etr1bsm2WpsojZA2C+D+Mrttc4t9MNq36Q1p0P9zjmUoV0RgHxNZsq1KN3/CIJRAVW4I5UkbIipsw==",
+      "path": "aspire.hosting.mongodb/13.1.0",
+      "hashPath": "aspire.hosting.mongodb.13.1.0.nupkg.sha512"
+    },
+    "AspNetCore.HealthChecks.MongoDb/9.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-WAmROqEXlVzjgCdEa9Zor2l6T29jsnKMJQPGbTnkrgpyqPcjwOomuh91CiAebmeWJ/CKenVX+fV/VFffnskgvw==",
+      "path": "aspnetcore.healthchecks.mongodb/9.0.0",
+      "hashPath": "aspnetcore.healthchecks.mongodb.9.0.0.nupkg.sha512"
+    },
     "AspNetCore.HealthChecks.Uris/9.0.0": {
       "type": "package",
       "serviceable": true,
       "sha512": "sha512-XYdNlA437KeF8p9qOpZFyNqAN+c0FXt/JjTvzH/Qans0q0O3pPE8KPnn39ucQQjR/Roum1vLTP3kXiUs8VHyuA==",
       "path": "aspnetcore.healthchecks.uris/9.0.0",
       "hashPath": "aspnetcore.healthchecks.uris.9.0.0.nupkg.sha512"
+    },
+    "DnsClient/1.8.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-RRwtaCXkXWsx0mmsReGDqCbRLtItfUbkRJlet1FpdciVhyMGKcPd57T1+8Jki9ojHlq9fntVhXQroOOgRak8DQ==",
+      "path": "dnsclient/1.8.0",
+      "hashPath": "dnsclient.1.8.0.nupkg.sha512"
     },
     "Fractions/7.3.0": {
       "type": "package",
@@ -675,6 +789,20 @@
       "path": "microsoft.visualstudio.validation/17.8.8",
       "hashPath": "microsoft.visualstudio.validation.17.8.8.nupkg.sha512"
     },
+    "MongoDB.Bson/3.5.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-JGNK6BanLDEifgkvPLqVFCPus5EDCy416pxf1dxUBRSVd3D9+NB3AvMVX190eXlk5/UXuCxpsQv7jWfNKvppBQ==",
+      "path": "mongodb.bson/3.5.0",
+      "hashPath": "mongodb.bson.3.5.0.nupkg.sha512"
+    },
+    "MongoDB.Driver/3.5.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ST90u7psyMkNNOWFgSkexsrB3kPn7Ynl2DlMFj2rJyYuc6SIxjmzu4ufy51yzM+cPVE1SvVcdb5UFobrRw6cMg==",
+      "path": "mongodb.driver/3.5.0",
+      "hashPath": "mongodb.driver.3.5.0.nupkg.sha512"
+    },
     "Nerdbank.Streams/2.12.87": {
       "type": "package",
       "serviceable": true,
@@ -703,6 +831,20 @@
       "path": "semver/3.0.0",
       "hashPath": "semver.3.0.0.nupkg.sha512"
     },
+    "SharpCompress/0.30.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-XqD4TpfyYGa7QTPzaGlMVbcecKnXy4YmYLDWrU+JIj7IuRNl7DH2END+Ll7ekWIY8o3dAMWLFDE1xdhfIWD1nw==",
+      "path": "sharpcompress/0.30.1",
+      "hashPath": "sharpcompress.0.30.1.nupkg.sha512"
+    },
+    "Snappier/1.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-rFtK2KEI9hIe8gtx3a0YDXdHOpedIf9wYCEYtBEmtlyiWVX3XlCNV03JrmmAi/Cdfn7dxK+k0sjjcLv4fpHnqA==",
+      "path": "snappier/1.0.0",
+      "hashPath": "snappier.1.0.0.nupkg.sha512"
+    },
     "StreamJsonRpc/2.22.23": {
       "type": "package",
       "serviceable": true,
@@ -723,6 +865,13 @@
       "sha512": "sha512-SgMOdxbz8X65z8hraIs6hOEdnkH6hESTAIUa7viEngHOYaH+6q5XJmwr1+yb9vJpNQ19hCQY69xbFsLtXpobQA==",
       "path": "yamldotnet/16.3.0",
       "hashPath": "yamldotnet.16.3.0.nupkg.sha512"
+    },
+    "ZstdSharp.Port/0.7.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-U9Ix4l4cl58Kzz1rJzj5hoVTjmbx1qGMwzAcbv1j/d3NzrFaESIurQyg+ow4mivCgkE3S413y+U9k4WdnEIkRA==",
+      "path": "zstdsharp.port/0.7.3",
+      "hashPath": "zstdsharp.port.0.7.3.nupkg.sha512"
     }
   }
 }

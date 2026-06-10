@@ -17,5 +17,5 @@ public class EventPlanner_AppHost
     /// <summary>
     /// The path to the Aspire Host project.
     /// </summary>
-    public static string ProjectPath => """C:\Users\install-admin\Desktop\aspnet\EventPlanner\EventPlanner.AppHost""";
+    public static string ProjectPath => """C:\Users\install-admin\Desktop\EventPlanner\EventPlanner.AppHost""";
 }
