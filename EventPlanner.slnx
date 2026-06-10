@@ -5,4 +5,6 @@
     <Build />
     <Deploy />
   </Project>
+  <Project Path="tests/EventPlanner.UnitTests/EventPlanner.UnitTests.csproj" />
+  <Project Path="tests/EventPlanner.IntegrationTests/EventPlanner.IntegrationTests.csproj" />
 </Solution>
