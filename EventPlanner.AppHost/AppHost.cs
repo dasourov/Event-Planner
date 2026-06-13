@@ -22,14 +22,13 @@ else
 // Pass configuration to the server backend
 var server = builder.AddProject<Projects.EventPlanner_Server>("server")
     .WithReference(db)
+    .WaitFor(db)
     .WithEnvironment("Jwt__Secret", Environment.GetEnvironmentVariable("JWT_SECRET") ?? "super_secret_key_that_is_at_least_32_characters_long_12345!")
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints();
 
 var webfrontend = builder.AddViteApp("webfrontend", "../frontend")
-    .WithReference(server)
-    .WaitFor(server);
-
+    .WithReference(server);
 server.PublishWithContainerFiles(webfrontend, "wwwroot");
 
 builder.Build().Run();
