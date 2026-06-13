@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("EventPlanner.UnitTests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2434bab1901eb84994057829272441958b61e050")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+dd30e09bcd5e128d87d766c147bb49c59ad0ad0e")]
 [assembly: System.Reflection.AssemblyProductAttribute("EventPlanner.UnitTests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("EventPlanner.UnitTests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
