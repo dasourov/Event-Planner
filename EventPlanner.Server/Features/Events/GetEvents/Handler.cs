@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -30,7 +28,18 @@ public class GetEventsHandler : IRequestHandler<GetEventsQuery, List<GetEventsRe
 
     public async Task<List<GetEventsResponse>> Handle(GetEventsQuery request, CancellationToken cancellationToken)
     {
-        var events = await _eventRepository.ListAsync(request.CategoryId, request.SearchTerm);
+        var page = request.Page < 1 ? 1 : request.Page;
+        var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+        pageSize = pageSize > 100 ? 100 : pageSize;
+
+        var events = await _eventRepository.ListAsync(
+            request.CategoryId,
+            request.SearchTerm,
+            request.Status,
+            page,
+            pageSize
+        );
+
         var resultList = new List<GetEventsResponse>();
 
         foreach (var @event in events)

@@ -9,7 +9,7 @@ public class Event
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
 
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
