@@ -1254,6 +1254,16 @@
           "lib/net5.0/Snappier.dll": {}
         }
       },
+      "System.Diagnostics.EventLog/10.0.1": {
+        "runtimeTargets": {
+          "runtimes/win/lib/net10.0/System.Diagnostics.EventLog.Messages.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.125.57005"
+          }
+        }
+      },
       "System.IdentityModel.Tokens.Jwt/8.3.0": {
         "dependencies": {
           "Microsoft.IdentityModel.JsonWebTokens": "8.3.0",
@@ -1280,7 +1290,7 @@
         "runtime": {
           "lib/netstandard2.0/xunit.abstractions.dll": {
             "assemblyVersion": "2.0.0.0",
-            "fileVersion": "2.0.0.0"
+            "fileVersion": "0.0.0.0"
           }
         },
         "compile": {
@@ -3454,9 +3464,6 @@
       "Microsoft.Extensions.Primitives/10.0.1": {
         "compileOnly": true
       },
-      "System.Diagnostics.EventLog/10.0.1": {
-        "compileOnly": true
-      },
       "System.Threading.RateLimiting/8.0.0": {
         "compileOnly": true
       },
@@ -3809,6 +3816,13 @@
       "sha512": "sha512-rFtK2KEI9hIe8gtx3a0YDXdHOpedIf9wYCEYtBEmtlyiWVX3XlCNV03JrmmAi/Cdfn7dxK+k0sjjcLv4fpHnqA==",
       "path": "snappier/1.0.0",
       "hashPath": "snappier.1.0.0.nupkg.sha512"
+    },
+    "System.Diagnostics.EventLog/10.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-xfaHEHVDkMOOZR5S6ZGezD0+vekdH1Nx/9Ih8/rOqOGSOk1fxiN3u94bYkBW/wigj0Uw2Wt3vvRj9mtYdgwEjw==",
+      "path": "system.diagnostics.eventlog/10.0.1",
+      "hashPath": "system.diagnostics.eventlog.10.0.1.nupkg.sha512"
     },
     "System.IdentityModel.Tokens.Jwt/8.3.0": {
       "type": "package",
@@ -5615,13 +5629,6 @@
       "sha512": "sha512-DO8XrJkp5x4PddDuc/CH37yDBCs9BYN6ijlKyR3vMb55BP1Vwh90vOX8bNfnKxr5B2qEI3D8bvbY1fFbDveDHQ==",
       "path": "microsoft.extensions.primitives/10.0.1",
       "hashPath": "microsoft.extensions.primitives.10.0.1.nupkg.sha512"
-    },
-    "System.Diagnostics.EventLog/10.0.1": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-xfaHEHVDkMOOZR5S6ZGezD0+vekdH1Nx/9Ih8/rOqOGSOk1fxiN3u94bYkBW/wigj0Uw2Wt3vvRj9mtYdgwEjw==",
-      "path": "system.diagnostics.eventlog/10.0.1",
-      "hashPath": "system.diagnostics.eventlog.10.0.1.nupkg.sha512"
     },
     "System.Threading.RateLimiting/8.0.0": {
       "type": "package",

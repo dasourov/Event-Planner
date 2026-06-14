@@ -1674,31 +1674,24 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\install-admin\\.nuget\\packages\\": {},
-    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
+    "/Users/abhi/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\install-admin\\Desktop\\EventPlanner\\EventPlanner.Server\\EventPlanner.Server.csproj",
+      "projectUniqueName": "/Users/abhi/Downloads/Event-Planner/EventPlanner.Server/EventPlanner.Server.csproj",
       "projectName": "EventPlanner.Server",
-      "projectPath": "C:\\Users\\install-admin\\Desktop\\EventPlanner\\EventPlanner.Server\\EventPlanner.Server.csproj",
-      "packagesPath": "C:\\Users\\install-admin\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\install-admin\\Desktop\\EventPlanner\\EventPlanner.Server\\obj\\",
+      "projectPath": "/Users/abhi/Downloads/Event-Planner/EventPlanner.Server/EventPlanner.Server.csproj",
+      "packagesPath": "/Users/abhi/.nuget/packages/",
+      "outputPath": "/Users/abhi/Downloads/Event-Planner/EventPlanner.Server/obj/",
       "projectStyle": "PackageReference",
-      "fallbackFolders": [
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-      ],
       "configFilePaths": [
-        "C:\\Users\\install-admin\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        "/Users/abhi/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
       ],
       "sources": {
-        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -1799,7 +1792,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.201/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.AspNetCore": "(,10.0.32767]",
           "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",

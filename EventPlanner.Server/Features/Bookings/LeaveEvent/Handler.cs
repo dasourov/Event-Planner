@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using EventPlanner.Server.Common.Errors;
 using EventPlanner.Server.Infrastructure.Repositories;
 
 namespace EventPlanner.Server.Features.Bookings.LeaveEvent;
@@ -20,7 +21,7 @@ public class LeaveEventHandler : IRequestHandler<LeaveEventCommand, LeaveEventRe
         var booking = await _bookingRepository.GetByUserAndEventAsync(request.UserId, request.EventId);
         if (booking == null)
         {
-            throw new Exception("Booking not found");
+            throw new NotFoundException("Booking not found");
         }
 
         await _bookingRepository.DeleteAsync(booking.Id);

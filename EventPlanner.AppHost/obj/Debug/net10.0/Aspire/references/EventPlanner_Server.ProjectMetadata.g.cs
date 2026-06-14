@@ -15,7 +15,7 @@ public class EventPlanner_Server : global::Aspire.Hosting.IProjectMetadata
     /// <summary>
     /// The path to the EventPlanner_Server project.
     /// </summary>
-    public string ProjectPath => """C:\Users\install-admin\Desktop\EventPlanner\EventPlanner.Server\EventPlanner.Server.csproj""";
+    public string ProjectPath => """/Users/abhi/Downloads/Event-Planner/EventPlanner.Server/EventPlanner.Server.csproj""";
 
     /// <summary>
     /// Gets a value indicating whether building the project before running it should be suppressed.

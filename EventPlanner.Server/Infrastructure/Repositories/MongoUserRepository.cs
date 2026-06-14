@@ -20,6 +20,11 @@ public class MongoUserRepository : IUserRepository
         return await _context.Users.Find(u => u.Id == id).FirstOrDefaultAsync();
     }
 
+    public async Task<List<User>> GetByIdsAsync(List<string> ids)
+    {
+        return await _context.Users.Find(u => ids.Contains(u.Id)).ToListAsync();
+    }
+
     public async Task<User?> GetByEmailAsync(string email)
     {
         return await _context.Users.Find(u => u.Email == email).FirstOrDefaultAsync();

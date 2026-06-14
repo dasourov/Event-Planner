@@ -6,6 +6,7 @@ using FluentValidation;
 using MediatR;
 using EventPlanner.Server.Common.Endpoints;
 using EventPlanner.Server.Common.Behaviors;
+using EventPlanner.Server.Common.Errors;
 using EventPlanner.Server.Infrastructure.Persistence;
 using EventPlanner.Server.Infrastructure.Persistence.Seed;
 using EventPlanner.Server.Infrastructure.Repositories;
@@ -20,6 +21,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Add services to the container.
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
@@ -33,7 +35,9 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"))
 // MongoDB Client
 builder.Services.AddSingleton<IMongoClient>(sp =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("mongodb");
+    // Aspire injects the connection string under the database resource name ("eventplanner")
+    var connectionString = builder.Configuration.GetConnectionString("mongodb")
+        ?? builder.Configuration.GetConnectionString("eventplanner");
     if (string.IsNullOrEmpty(connectionString))
     {
         connectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING");

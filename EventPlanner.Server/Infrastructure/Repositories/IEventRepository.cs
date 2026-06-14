@@ -7,6 +7,7 @@ namespace EventPlanner.Server.Infrastructure.Repositories;
 public interface IEventRepository
 {
     Task<Event?> GetByIdAsync(string id);
+    Task<List<Event>> GetByIdsAsync(List<string> ids);
     Task CreateAsync(Event @event);
     Task UpdateAsync(Event @event);
     Task DeleteAsync(string id);
