@@ -35,6 +35,11 @@ public class MongoCommentRepository : ICommentRepository
         await _context.Comments.DeleteOneAsync(c => c.Id == id);
     }
 
+    public async Task DeleteManyAsync(List<string> ids)
+    {
+        await _context.Comments.DeleteManyAsync(c => ids.Contains(c.Id));
+    }
+
     public async Task<List<Comment>> ListByEventAsync(string eventId)
     {
         return await _context.Comments.Find(c => c.EventId == eventId).ToListAsync();

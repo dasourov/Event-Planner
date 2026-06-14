@@ -22,6 +22,11 @@ public class MongoEventRepository : IEventRepository
         return await _context.Events.Find(e => e.Id == id).FirstOrDefaultAsync();
     }
 
+    public async Task<List<Event>> GetByIdsAsync(List<string> ids)
+    {
+        return await _context.Events.Find(e => ids.Contains(e.Id)).ToListAsync();
+    }
+
     public async Task CreateAsync(Event @event)
     {
         await _context.Events.InsertOneAsync(@event);

@@ -16,6 +16,11 @@ public class Comment
     [BsonRepresentation(BsonType.ObjectId)]
     public string UserId { get; set; } = string.Empty;
 
+    // Null for top-level comments; set when this comment is a reply to another comment
+    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonIgnoreIfNull]
+    public string? ParentCommentId { get; set; }
+
     public string Content { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

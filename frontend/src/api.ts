@@ -93,8 +93,8 @@ export const api = {
   // Comments
   getComments: (eventId: string) => request<any[]>(`/api/events/${eventId}/comments`, 'GET'),
   createComment: (eventId: string, body: any) => request<any>(`/api/events/${eventId}/comments`, 'POST', body),
-  updateComment: (commentId: string, body: any) => request<any>(`/api/comments/${commentId}`, 'PUT', body),
-  deleteComment: (commentId: string) => request<any>(`/api/comments/${commentId}`, 'DELETE'),
+  updateComment: (eventId: string, commentId: string, body: any) => request<any>(`/api/events/${eventId}/comments/${commentId}`, 'PUT', body),
+  deleteComment: (eventId: string, commentId: string) => request<any>(`/api/events/${eventId}/comments/${commentId}`, 'DELETE'),
 
   // Admin Panel User actions
   adminGetUsers: () => request<any[]>('/api/admin/users', 'GET'),

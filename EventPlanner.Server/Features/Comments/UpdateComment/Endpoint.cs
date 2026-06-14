@@ -11,7 +11,7 @@ public class UpdateCommentEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPut("/api/comments/{commentId}", async (string commentId, UpdateCommentRequest req, ClaimsPrincipal user, ISender sender) =>
+        app.MapPut("/api/events/{eventId}/comments/{commentId}", async (string eventId, string commentId, UpdateCommentRequest req, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
@@ -19,7 +19,7 @@ public class UpdateCommentEndpoint : IEndpoint
                 return Results.Unauthorized();
             }
 
-            var response = await sender.Send(new UpdateCommentCommand(commentId, userId, req.Content));
+            var response = await sender.Send(new UpdateCommentCommand(eventId, commentId, userId, req.Content));
             return Results.Ok(response);
         })
         .WithName("UpdateComment")
