@@ -58,3 +58,12 @@ obj/
 .vs/
 *.user
 *.suo
+
+# Build output
+.vs/
+[Bb]in/
+[Oo]bj/
+**/[Bb]in/
+**/[Oo]bj/
+*.user
+*.suo
