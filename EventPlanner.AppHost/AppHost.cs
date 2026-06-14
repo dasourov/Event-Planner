@@ -10,13 +10,21 @@ IResourceBuilder<IResourceWithConnectionString> db;
 if (!string.IsNullOrEmpty(connectionString))
 {
     // Use the remote database connection string directly (e.g. MongoDB Atlas)
-    db = builder.AddConnectionString("mongodb", connectionString);
+    //db = builder.AddConnectionString("mongodb", "MONGODB_CONNECTION_STRING");
+    
+    // Make the value visible to Aspire's connection-string resolver
+    builder.Configuration["ConnectionStrings:mongodb"] = connectionString;
+    db = builder.AddConnectionString("mongodb");
 }
 else
 {
     // Fallback: Spin up a local MongoDB Container resource
+    //var mongodb = builder.AddMongoDB("mongodb");
+    //db = mongodb.AddDatabase("gather");
+
+     // Fallback: spin up a local container (needs Docker)
     var mongodb = builder.AddMongoDB("mongodb");
-    db = mongodb.AddDatabase("eventplanner");
+    db = mongodb.AddDatabase("gather");
 }
 
 // Pass configuration to the server backend
