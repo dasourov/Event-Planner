@@ -6,6 +6,8 @@ public class BanUserValidator : AbstractValidator<BanUserCommand>
 {
     public BanUserValidator()
     {
-        RuleFor(x => x.TargetUserId).NotEmpty();
+         RuleFor(x => x.TargetUserId)
+        .NotEmpty().WithMessage("Target user id is required.")
+        .NotEqual(x => x.AdminUserId).WithMessage("Admins cannot ban themselves.");
     }
 }
