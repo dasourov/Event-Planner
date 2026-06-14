@@ -11,7 +11,7 @@ export interface ApiResponse<T> {
 
 async function request<T>(
   url: string,
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' = 'GET',
   body?: any
 ): Promise<ApiResponse<T>> {
   try {
@@ -98,7 +98,7 @@ export const api = {
 
   // Admin Panel User actions
   adminGetUsers: () => request<any[]>('/api/admin/users', 'GET'),
-  adminBanUser: (userId: string) => request<any>(`/api/admin/users/${userId}/ban`, 'POST'),
+  adminBanUser: (userId: string) => request<any>(`/api/admin/users/${userId}/ban`, 'PATCH'),
   adminForceDeleteEvent: (id: string) => request<any>(`/api/admin/events/${id}`, 'DELETE'),
   adminForceDeleteComment: (id: string) => request<any>(`/api/admin/comments/${id}`, 'DELETE'),
 };
