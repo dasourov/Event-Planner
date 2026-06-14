@@ -33,19 +33,21 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"))
 // MongoDB Client
 builder.Services.AddSingleton<IMongoClient>(sp =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("mongodb");
-    if (string.IsNullOrEmpty(connectionString))
+    var configuration = sp.GetRequiredService<IConfiguration>();
+
+    var connectionString =
+        configuration.GetConnectionString("eventplanner") ??
+        configuration.GetConnectionString("mongodb") ??
+        Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") ??
+        configuration["MongoDb:ConnectionString"];
+
+    if (string.IsNullOrWhiteSpace(connectionString) ||
+        connectionString == "MONGODB_CONNECTION_STRING_PLACEHOLDER" ||
+        connectionString == "your_mongodb_connection_string_here")
     {
-        connectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING");
+        throw new InvalidOperationException("MongoDB connection string is missing.");
     }
-    if (string.IsNullOrEmpty(connectionString) || connectionString == "MONGODB_CONNECTION_STRING_PLACEHOLDER")
-    {
-        connectionString = builder.Configuration["MongoDb:ConnectionString"];
-    }
-    if (string.IsNullOrEmpty(connectionString) || connectionString == "MONGODB_CONNECTION_STRING_PLACEHOLDER")
-    {
-        connectionString = "mongodb://localhost:27017";
-    }
+
     return new MongoClient(connectionString);
 });
 
