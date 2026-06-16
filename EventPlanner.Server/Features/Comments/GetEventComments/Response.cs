@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace EventPlanner.Server.Features.Comments.GetEventComments;
 
@@ -8,5 +9,7 @@ public record GetEventCommentsResponse(
     string UserId,
     string Username,
     string Content,
-    DateTime CreatedAt
+    string? ParentCommentId,
+    DateTime CreatedAt,
+    List<GetEventCommentsResponse> Replies
 );

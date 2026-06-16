@@ -6,6 +6,7 @@ using FluentValidation;
 using MediatR;
 using EventPlanner.Server.Common.Endpoints;
 using EventPlanner.Server.Common.Behaviors;
+using EventPlanner.Server.Common.Errors;
 using EventPlanner.Server.Infrastructure.Persistence;
 using EventPlanner.Server.Infrastructure.Persistence.Seed;
 using EventPlanner.Server.Infrastructure.Repositories;
@@ -20,6 +21,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Add services to the container.
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
@@ -29,23 +31,22 @@ builder.Services.AddSignalR();
 // Bind Settings
 builder.Services.Configure<MongoDbSettings>(builder.Configuration.GetSection("MongoDb"));
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
-
 // MongoDB Client
 builder.Services.AddSingleton<IMongoClient>(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
 
     var connectionString =
-        configuration.GetConnectionString("eventplanner") ??
         configuration.GetConnectionString("mongodb") ??
+        configuration.GetConnectionString("eventplanner") ??
         Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") ??
         configuration["MongoDb:ConnectionString"];
 
-    if (string.IsNullOrWhiteSpace(connectionString) ||
+    if (string.IsNullOrEmpty(connectionString) ||
         connectionString == "MONGODB_CONNECTION_STRING_PLACEHOLDER" ||
         connectionString == "your_mongodb_connection_string_here")
     {
-        throw new InvalidOperationException("MongoDB connection string is missing.");
+        connectionString = "mongodb://localhost:27017";
     }
 
     return new MongoClient(connectionString);

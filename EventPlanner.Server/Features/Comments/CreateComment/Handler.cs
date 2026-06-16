@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
+using EventPlanner.Server.Common.Errors;
 using EventPlanner.Server.Domain.Entities;
 using EventPlanner.Server.Infrastructure.Repositories;
 using EventPlanner.Server.Infrastructure.SignalR;
@@ -34,19 +35,35 @@ public class CreateCommentHandler : IRequestHandler<CreateCommentCommand, Create
         var @event = await _eventRepository.GetByIdAsync(request.EventId);
         if (@event == null)
         {
-            throw new Exception("Event not found");
+            throw new NotFoundException("Event not found");
         }
 
         var user = await _userRepository.GetByIdAsync(request.UserId);
         if (user == null)
         {
-            throw new Exception("User not found");
+            throw new NotFoundException("User not found");
+        }
+
+        // When replying, the parent comment must exist and belong to the same event
+        if (!string.IsNullOrEmpty(request.ParentCommentId))
+        {
+            var parent = await _commentRepository.GetByIdAsync(request.ParentCommentId);
+            if (parent == null)
+            {
+                throw new NotFoundException("Parent comment not found");
+            }
+
+            if (parent.EventId != request.EventId)
+            {
+                throw new ConflictException("Parent comment does not belong to this event");
+            }
         }
 
         var comment = new Comment
         {
             EventId = request.EventId,
             UserId = request.UserId,
+            ParentCommentId = string.IsNullOrEmpty(request.ParentCommentId) ? null : request.ParentCommentId,
             Content = request.Content,
             CreatedAt = DateTime.UtcNow
         };
@@ -59,6 +76,7 @@ public class CreateCommentHandler : IRequestHandler<CreateCommentCommand, Create
             comment.UserId,
             user.Username,
             comment.Content,
+            comment.ParentCommentId,
             comment.CreatedAt
         );
 

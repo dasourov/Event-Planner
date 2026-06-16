@@ -57,8 +57,42 @@ interface Comment {
   userId: string;
   username: string;
   content: string;
+  parentCommentId?: string | null;
   createdAt: string;
 }
+
+// The API returns comments as a nested tree (each comment carries its replies).
+// We keep them flat in state and rebuild the tree at render time, so SignalR
+// events (which arrive as single comments) can be applied uniformly.
+const flattenComments = (tree: any[]): Comment[] =>
+  tree.flatMap((c) => [
+    {
+      id: c.id,
+      eventId: c.eventId,
+      userId: c.userId,
+      username: c.username,
+      content: c.content,
+      parentCommentId: c.parentCommentId ?? null,
+      createdAt: c.createdAt,
+    },
+    ...flattenComments(c.replies || []),
+  ]);
+
+// A comment plus every reply beneath it (used when a deletion cascades)
+const collectCommentWithDescendants = (rootId: string, all: Comment[]): Set<string> => {
+  const ids = new Set([rootId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const c of all) {
+      if (c.parentCommentId && ids.has(c.parentCommentId) && !ids.has(c.id)) {
+        ids.add(c.id);
+        changed = true;
+      }
+    }
+  }
+  return ids;
+};
 
 interface UserProfile {
   id: string;
@@ -232,6 +266,8 @@ export default function App() {
   const [newCommentText, setNewCommentText] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   // Event Creation/Editing Form State
   const [formTitle, setFormTitle] = useState('');
@@ -432,8 +468,9 @@ export default function App() {
       };
 
       const onUpdated = (updatedComment: any) => {
+        // Merge: the update payload only carries id/content/createdAt
         setEventComments((prev) =>
-          prev.map((c) => (c.id === updatedComment.id ? updatedComment : c))
+          prev.map((c) => (c.id === updatedComment.id ? { ...c, ...updatedComment } : c))
         );
       };
 
@@ -535,7 +572,7 @@ export default function App() {
       setEventAttendees(attendeesRes.data);
     }
     if (commentsRes.success && commentsRes.data) {
-      setEventComments(commentsRes.data);
+      setEventComments(flattenComments(commentsRes.data));
     }
   };
 
@@ -813,8 +850,39 @@ export default function App() {
     }
   };
 
+  const handlePostReply = async (parentCommentId: string) => {
+    if (!replyText.trim() || !selectedEventId) return;
+
+    if (selectedEventId.startsWith('dummy-') || parentCommentId.startsWith('mock-com-')) {
+      // Demo reply addition locally
+      const newCom: Comment = {
+        id: `mock-com-${Date.now()}`,
+        eventId: selectedEventId,
+        userId: user?.id || 'mock-user',
+        username: user?.username || 'Guest',
+        content: replyText,
+        parentCommentId,
+        createdAt: new Date().toISOString()
+      };
+      setEventComments(prev => [...prev, newCom]);
+      setReplyingToCommentId(null);
+      setReplyText('');
+      return;
+    }
+
+    setLoading(true);
+    const res = await api.createComment(selectedEventId, { content: replyText, parentCommentId });
+    setLoading(false);
+    if (res.success) {
+      setReplyingToCommentId(null);
+      setReplyText('');
+    } else {
+      setErrorMsg(res.error || 'Failed to submit reply.');
+    }
+  };
+
   const handleUpdateComment = async (commentId: string) => {
-    if (!editingCommentText.trim()) return;
+    if (!editingCommentText.trim() || !selectedEventId) return;
 
     if (commentId.startsWith('mock-com-')) {
       setEventComments(prev => prev.map(c => c.id === commentId ? { ...c, content: editingCommentText } : c));
@@ -824,7 +892,7 @@ export default function App() {
     }
 
     setLoading(true);
-    const res = await api.updateComment(commentId, { content: editingCommentText });
+    const res = await api.updateComment(selectedEventId, commentId, { content: editingCommentText });
     setLoading(false);
     if (res.success) {
       setEditingCommentId(null);
@@ -835,18 +903,27 @@ export default function App() {
   };
 
   const handleDeleteComment = async (commentId: string, adminForce = false) => {
-    if (!confirm('Delete this comment permanently?')) return;
+    if (!confirm('Delete this comment permanently? Replies to it will be deleted too.')) return;
 
     if (commentId.startsWith('mock-com-')) {
-      setEventComments(prev => prev.filter(c => c.id !== commentId));
+      setEventComments(prev => {
+        const removed = collectCommentWithDescendants(commentId, prev);
+        return prev.filter(c => !removed.has(c.id));
+      });
       return;
     }
 
+    if (!selectedEventId) return;
+
     setLoading(true);
-    const res = adminForce ? await api.adminForceDeleteComment(commentId) : await api.deleteComment(commentId);
+    const res = adminForce ? await api.adminForceDeleteComment(commentId) : await api.deleteComment(selectedEventId, commentId);
     setLoading(false);
     if (res.success) {
-      setEventComments(prev => prev.filter(c => c.id !== commentId));
+      // Deleting a comment also removes its replies (the backend cascades)
+      setEventComments(prev => {
+        const removed = collectCommentWithDescendants(commentId, prev);
+        return prev.filter(c => !removed.has(c.id));
+      });
     } else {
       setErrorMsg(res.error || 'Failed to delete comment.');
     }
@@ -1286,77 +1363,129 @@ export default function App() {
                       <p className="text-[10px] max-w-[150px]">Coordinate with other attendees here live!</p>
                     </div>
                   ) : (
-                    eventComments.map((com) => {
-                      const isOwner = user && com.userId === user.id;
-                      const isAdmin = user?.role === 'Admin';
-                      return (
-                        <div key={com.id} className="group/com space-y-1">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[9px] font-extrabold text-slate-700">
-                                {com.username}
-                              </span>
-                              {selectedEvent.organizerId === com.userId && (
-                                <span className="px-1 py-0.2 bg-[#4648d4]/10 text-[#4648d4] text-[8px] font-extrabold rounded uppercase tracking-wider">
-                                  Host
+                    (() => {
+                      const renderComment = (com: Comment, depth: number): React.ReactNode => {
+                        const isOwner = user && com.userId === user.id;
+                        const isAdmin = user?.role === 'Admin';
+                        const replies = eventComments
+                          .filter((c) => c.parentCommentId === com.id)
+                          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+                        return (
+                          <div key={com.id} className="group/com space-y-1">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] font-extrabold text-slate-700">
+                                  {com.username}
                                 </span>
+                                {selectedEvent.organizerId === com.userId && (
+                                  <span className="px-1 py-0.2 bg-[#4648d4]/10 text-[#4648d4] text-[8px] font-extrabold rounded uppercase tracking-wider">
+                                    Host
+                                  </span>
+                                )}
+                                <span className="text-[9px] text-slate-400 font-bold">
+                                  {new Date(com.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+
+                              {token && (
+                                <div className="opacity-0 group-hover/com:opacity-100 flex items-center gap-1 transition-opacity">
+                                  <button
+                                    onClick={() => { setReplyingToCommentId(replyingToCommentId === com.id ? null : com.id); setReplyText(''); }}
+                                    className="p-0.5 hover:text-[#4648d4] text-slate-400 transition-colors"
+                                    title="Reply"
+                                  >
+                                    <span className="material-symbols-outlined text-sm font-bold">reply</span>
+                                  </button>
+                                  {isOwner && editingCommentId !== com.id && (
+                                    <button
+                                      onClick={() => { setEditingCommentId(com.id); setEditingCommentText(com.content); }}
+                                      className="p-0.5 hover:text-[#4648d4] text-slate-400 transition-colors"
+                                    >
+                                      <span className="material-symbols-outlined text-sm font-bold">edit</span>
+                                    </button>
+                                  )}
+                                  {(isOwner || isAdmin) && (
+                                    <button
+                                      onClick={() => handleDeleteComment(com.id, isAdmin && !isOwner)}
+                                      className="p-0.5 hover:text-red-500 text-slate-400 transition-colors"
+                                    >
+                                      <span className="material-symbols-outlined text-sm font-bold">delete</span>
+                                    </button>
+                                  )}
+                                </div>
                               )}
-                              <span className="text-[9px] text-slate-400 font-bold">
-                                {new Date(com.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
                             </div>
 
-                            {(isOwner || isAdmin) && (
-                              <div className="opacity-0 group-hover/com:opacity-100 flex items-center gap-1 transition-opacity">
-                                {isOwner && editingCommentId !== com.id && (
+                            {editingCommentId === com.id ? (
+                              <div className="space-y-1.5 bg-slate-50 p-2 rounded-xl border border-[#4648d4]/20">
+                                <textarea
+                                  value={editingCommentText}
+                                  onChange={(e) => setEditingCommentText(e.target.value)}
+                                  rows={2}
+                                  className="w-full text-xs p-1.5 rounded bg-white text-slate-800 border border-slate-200 focus:outline-none focus:ring-1 focus:ring-[#4648d4]"
+                                />
+                                <div className="flex items-center justify-end gap-1">
                                   <button
-                                    onClick={() => { setEditingCommentId(com.id); setEditingCommentText(com.content); }}
-                                    className="p-0.5 hover:text-[#4648d4] text-slate-400 transition-colors"
+                                    onClick={() => setEditingCommentId(null)}
+                                    className="px-2 py-1 bg-slate-200 text-slate-600 text-[8px] font-bold rounded"
                                   >
-                                    <span className="material-symbols-outlined text-sm font-bold">edit</span>
+                                    Cancel
                                   </button>
-                                )}
-                                <button
-                                  onClick={() => handleDeleteComment(com.id, isAdmin && !isOwner)}
-                                  className="p-0.5 hover:text-red-500 text-slate-400 transition-colors"
-                                >
-                                  <span className="material-symbols-outlined text-sm font-bold">delete</span>
-                                </button>
+                                  <button
+                                    onClick={() => handleUpdateComment(com.id)}
+                                    className="px-2 py-1 bg-[#4648d4] text-white text-[8px] font-bold rounded"
+                                  >
+                                    Save
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="bg-slate-50 p-2.5 rounded-2xl text-xs text-slate-600 font-medium leading-relaxed border border-slate-100/50 whitespace-pre-wrap">
+                                {com.content}
+                              </div>
+                            )}
+
+                            {replyingToCommentId === com.id && (
+                              <div className="space-y-1.5 bg-slate-50 p-2 rounded-xl border border-[#4648d4]/20">
+                                <textarea
+                                  value={replyText}
+                                  onChange={(e) => setReplyText(e.target.value)}
+                                  placeholder={`Reply to ${com.username}...`}
+                                  rows={2}
+                                  className="w-full text-xs p-1.5 rounded bg-white text-slate-800 border border-slate-200 focus:outline-none focus:ring-1 focus:ring-[#4648d4]"
+                                />
+                                <div className="flex items-center justify-end gap-1">
+                                  <button
+                                    onClick={() => { setReplyingToCommentId(null); setReplyText(''); }}
+                                    className="px-2 py-1 bg-slate-200 text-slate-600 text-[8px] font-bold rounded"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handlePostReply(com.id)}
+                                    disabled={!replyText.trim()}
+                                    className="px-2 py-1 bg-[#4648d4] text-white text-[8px] font-bold rounded disabled:opacity-40"
+                                  >
+                                    Reply
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {replies.length > 0 && (
+                              <div className="ml-3 pl-3 border-l-2 border-slate-100 space-y-3 pt-1">
+                                {replies.map((reply) => renderComment(reply, depth + 1))}
                               </div>
                             )}
                           </div>
+                        );
+                      };
 
-                          {editingCommentId === com.id ? (
-                            <div className="space-y-1.5 bg-slate-50 p-2 rounded-xl border border-[#4648d4]/20">
-                              <textarea
-                                value={editingCommentText}
-                                onChange={(e) => setEditingCommentText(e.target.value)}
-                                rows={2}
-                                className="w-full text-xs p-1.5 rounded bg-white text-slate-800 border border-slate-200 focus:outline-none focus:ring-1 focus:ring-[#4648d4]"
-                              />
-                              <div className="flex items-center justify-end gap-1">
-                                <button
-                                  onClick={() => setEditingCommentId(null)}
-                                  className="px-2 py-1 bg-slate-200 text-slate-600 text-[8px] font-bold rounded"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  onClick={() => handleUpdateComment(com.id)}
-                                  className="px-2 py-1 bg-[#4648d4] text-white text-[8px] font-bold rounded"
-                                >
-                                  Save
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="bg-slate-50 p-2.5 rounded-2xl text-xs text-slate-600 font-medium leading-relaxed border border-slate-100/50 whitespace-pre-wrap">
-                              {com.content}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
+                      return eventComments
+                        .filter((c) => !c.parentCommentId || !eventComments.some((p) => p.id === c.parentCommentId))
+                        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+                        .map((com) => renderComment(com, 0));
+                    })()
                   )}
                 </div>
 
