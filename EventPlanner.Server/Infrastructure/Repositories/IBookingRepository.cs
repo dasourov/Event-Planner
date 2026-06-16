@@ -13,4 +13,5 @@ public interface IBookingRepository
     Task<List<Booking>> ListByUserAsync(string userId);
     Task<List<Booking>> ListByEventAsync(string eventId);
     Task<int> CountByEventAsync(string eventId);
+    Task<Dictionary<string, int>> GetAttendeeCountsAsync(IEnumerable<string> eventIds);
 }

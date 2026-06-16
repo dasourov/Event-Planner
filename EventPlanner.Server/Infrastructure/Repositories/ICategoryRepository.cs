@@ -7,6 +7,7 @@ namespace EventPlanner.Server.Infrastructure.Repositories;
 public interface ICategoryRepository
 {
     Task<Category?> GetByIdAsync(string id);
+    Task<List<Category>> GetByIdsAsync(IEnumerable<string> ids);
     Task<Category?> GetByNameAsync(string name);
     Task CreateAsync(Category category);
     Task UpdateAsync(Category category);

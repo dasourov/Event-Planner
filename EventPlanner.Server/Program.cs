@@ -155,7 +155,7 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while seeding the database");
+        logger.LogError(ex, "An error occurred while initializing the database");
     }
 }
 
@@ -170,11 +170,11 @@ app.MapDefaultEndpoints();
 // Map Root Welcome and Info Endpoint
 app.MapGet("/", () => Results.Ok(new 
 {
-    Message = "EventPlanner API is running successfully!",
+    Message = "EventPlanner API v1 is running successfully!",
     DocumentationUrl = "/openapi/v1.json",
-    AuthEndpoints = new[] { "POST /api/auth/register", "POST /api/auth/login", "GET /api/auth/me" },
-    EventEndpoints = new[] { "GET /api/events", "POST /api/events", "GET /api/events/{id}", "PUT /api/events/{id}", "DELETE /api/events/{id}" },
-    BookingEndpoints = new[] { "POST /api/bookings/{eventId}/join", "DELETE /api/bookings/{eventId}/leave", "GET /api/bookings/my" }
+    AuthEndpoints = new[] { "POST /api/v1/auth/register", "POST /api/v1/auth/login", "GET /api/v1/auth/me" },
+    EventEndpoints = new[] { "GET /api/v1/events", "POST /api/v1/events", "GET /api/v1/events/{id}", "PUT /api/v1/events/{id}", "DELETE /api/v1/events/{id}" },
+    BookingEndpoints = new[] { "POST /api/v1/bookings/{eventId}/join", "DELETE /api/v1/bookings/{eventId}/leave", "GET /api/v1/bookings/my" }
 }));
 
 app.UseFileServer();

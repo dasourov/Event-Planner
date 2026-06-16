@@ -42,11 +42,38 @@ public class GetEventsHandler : IRequestHandler<GetEventsQuery, List<GetEventsRe
 
         var resultList = new List<GetEventsResponse>();
 
+        if (events.Count == 0) return resultList;
+
+        var organizerIds = new HashSet<string>();
+        var categoryIds = new HashSet<string>();
+        var eventIds = new HashSet<string>();
+
         foreach (var @event in events)
         {
-            var organizer = await _userRepository.GetByIdAsync(@event.OrganizerId);
-            var category = await _categoryRepository.GetByIdAsync(@event.CategoryId);
-            var attendeeCount = await _bookingRepository.CountByEventAsync(@event.Id);
+            organizerIds.Add(@event.OrganizerId);
+            categoryIds.Add(@event.CategoryId);
+            eventIds.Add(@event.Id);
+        }
+
+        var organizersTask = _userRepository.GetByIdsAsync(organizerIds);
+        var categoriesTask = _categoryRepository.GetByIdsAsync(categoryIds);
+        var attendeeCountsTask = _bookingRepository.GetAttendeeCountsAsync(eventIds);
+
+        await Task.WhenAll(organizersTask, categoriesTask, attendeeCountsTask);
+
+        var organizersDict = new Dictionary<string, Domain.Entities.User>();
+        foreach (var org in organizersTask.Result) organizersDict[org.Id] = org;
+
+        var categoriesDict = new Dictionary<string, Domain.Entities.Category>();
+        foreach (var cat in categoriesTask.Result) categoriesDict[cat.Id] = cat;
+
+        var attendeeCountsDict = attendeeCountsTask.Result;
+
+        foreach (var @event in events)
+        {
+            organizersDict.TryGetValue(@event.OrganizerId, out var organizer);
+            categoriesDict.TryGetValue(@event.CategoryId, out var category);
+            attendeeCountsDict.TryGetValue(@event.Id, out var attendeeCount);
 
             resultList.Add(new GetEventsResponse(
                 @event.Id,

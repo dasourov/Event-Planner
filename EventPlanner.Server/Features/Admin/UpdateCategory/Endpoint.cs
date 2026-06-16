@@ -11,7 +11,7 @@ public class UpdateCategoryEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPut("/api/admin/categories/{id}", async (string id, UpdateCategoryRequest req, ClaimsPrincipal user, ISender sender) =>
+        app.MapPut("/api/v1/admin/categories/{id}", async (string id, UpdateCategoryRequest req, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))

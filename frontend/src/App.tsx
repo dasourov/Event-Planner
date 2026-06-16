@@ -254,6 +254,7 @@ export default function App() {
 
   // Search, Filter & Pagination
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [activePage, setActivePage] = useState<number>(1);
 
@@ -279,6 +280,12 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [successMsg]);
+
+  // Debounce search term — wait 400ms after user stops typing before triggering API call
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Initial Boot setup
   useEffect(() => {
@@ -321,7 +328,10 @@ export default function App() {
     setLoading(true);
     const res = await api.getEvents(
       selectedCategoryId && !selectedCategoryId.startsWith('dummy') ? selectedCategoryId : undefined,
-      searchTerm || undefined
+      debouncedSearchTerm || undefined,
+      undefined,
+      activePage,
+      20
     );
     setLoading(false);
     
@@ -348,8 +358,8 @@ export default function App() {
       });
     }
 
-    if (searchTerm) {
-      const query = searchTerm.toLowerCase();
+    if (debouncedSearchTerm) {
+      const query = debouncedSearchTerm.toLowerCase();
       combined = combined.filter(e => 
         e.title.toLowerCase().includes(query) || 
         e.description.toLowerCase().includes(query)
@@ -359,10 +369,10 @@ export default function App() {
     setEvents(combined);
   };
 
-  // Refresh events list when category or search changes
+  // Refresh events list when category, debounced search, or page changes
   useEffect(() => {
     fetchEvents();
-  }, [selectedCategoryId, searchTerm]);
+  }, [selectedCategoryId, debouncedSearchTerm, activePage]);
 
   // Fetch My dashboard information
   const fetchMyDashboard = async () => {
@@ -1956,27 +1966,9 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-200/60 bg-white py-8 px-6 mt-auto shrink-0">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-slate-400 font-bold">
-          <div className="text-center md:text-left space-y-1">
-            <h4 className="text-sm font-extrabold text-slate-800">GatherPulse</h4>
-            <p className="font-medium text-[10px]">© 2024 GatherPulse Inc. Community First.</p>
-          </div>
-          
-          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-slate-500">
-            <a href="#" className="hover:text-slate-800 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-slate-800 transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-slate-800 transition-colors">Contact Support</a>
-            <a href="#" className="hover:text-slate-800 transition-colors">About Us</a>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors">
-              <span className="material-symbols-outlined text-base">share</span>
-            </button>
-            <button className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors">
-              <span className="material-symbols-outlined text-base">settings</span>
-            </button>
-          </div>
+        <div className="max-w-7xl mx-auto flex flex-col items-center justify-center gap-2 text-xs text-slate-400 font-bold text-center">
+          <h4 className="text-sm font-extrabold text-slate-800">GatherPulse</h4>
+          <p className="font-medium text-[10px]">© 2026 GatherPulse Inc. Community First.</p>
         </div>
       </footer>
 

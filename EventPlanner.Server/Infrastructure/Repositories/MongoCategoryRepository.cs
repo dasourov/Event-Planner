@@ -20,6 +20,12 @@ public class MongoCategoryRepository : ICategoryRepository
         return await _context.Categories.Find(c => c.Id == id).FirstOrDefaultAsync();
     }
 
+    public async Task<List<Category>> GetByIdsAsync(IEnumerable<string> ids)
+    {
+        var filter = Builders<Category>.Filter.In(c => c.Id, ids);
+        return await _context.Categories.Find(filter).ToListAsync();
+    }
+
     public async Task<Category?> GetByNameAsync(string name)
     {
         return await _context.Categories.Find(c => c.Name == name).FirstOrDefaultAsync();
