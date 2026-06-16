@@ -8,5 +8,6 @@ public record CreateCommentResponse(
     string UserId,
     string Username,
     string Content,
+    string? ParentCommentId,
     DateTime CreatedAt
 );

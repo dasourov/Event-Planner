@@ -19,7 +19,7 @@ public class CreateCommentEndpoint : IEndpoint
                 return Results.Unauthorized();
             }
 
-            var response = await sender.Send(new CreateCommentCommand(eventId, userId, req.Content));
+            var response = await sender.Send(new CreateCommentCommand(eventId, userId, req.Content, req.ParentCommentId));
             return Results.Ok(response);
         })
         .WithName("CreateComment")
@@ -28,4 +28,4 @@ public class CreateCommentEndpoint : IEndpoint
     }
 }
 
-public record CreateCommentRequest(string Content);
+public record CreateCommentRequest(string Content, string? ParentCommentId = null);

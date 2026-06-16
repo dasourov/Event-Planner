@@ -28,8 +28,8 @@ public class GetMyBookingsHandler : IRequestHandler<GetMyBookingsQuery, List<Get
     public async Task<List<GetMyBookingsResponse>> Handle(GetMyBookingsQuery request, CancellationToken cancellationToken)
     {
         var bookings = await _bookingRepository.ListByUserAsync(request.UserId);
-        var resultList = new List<GetMyBookingsResponse>();
 
+        var resultList = new List<GetMyBookingsResponse>();
         if (bookings == null || bookings.Count == 0)
         {
             return resultList;

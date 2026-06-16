@@ -22,8 +22,8 @@ public class GetEventAttendeesHandler : IRequestHandler<GetEventAttendeesQuery, 
     public async Task<List<GetEventAttendeesResponse>> Handle(GetEventAttendeesQuery request, CancellationToken cancellationToken)
     {
         var bookings = await _bookingRepository.ListByEventAsync(request.EventId);
-        var resultList = new List<GetEventAttendeesResponse>();
 
+        var resultList = new List<GetEventAttendeesResponse>();
         if (bookings == null || bookings.Count == 0)
         {
             return resultList;
