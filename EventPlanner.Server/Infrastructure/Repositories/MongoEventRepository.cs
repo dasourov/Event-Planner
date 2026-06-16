@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using MongoDB.Driver;
 using MongoDB.Bson;
@@ -22,9 +24,10 @@ public class MongoEventRepository : IEventRepository
         return await _context.Events.Find(e => e.Id == id).FirstOrDefaultAsync();
     }
 
-    public async Task<List<Event>> GetByIdsAsync(List<string> ids)
+    public async Task<List<Event>> GetByIdsAsync(IEnumerable<string> ids)
     {
-        return await _context.Events.Find(e => ids.Contains(e.Id)).ToListAsync();
+        var filter = Builders<Event>.Filter.In(e => e.Id, ids);
+        return await _context.Events.Find(filter).ToListAsync();
     }
 
     public async Task CreateAsync(Event @event)
@@ -42,23 +45,52 @@ public class MongoEventRepository : IEventRepository
         await _context.Events.DeleteOneAsync(e => e.Id == id);
     }
 
-    public async Task<List<Event>> ListAsync(string? categoryId = null, string? searchTerm = null)
+    public async Task<List<Event>> ListAsync(
+        string? categoryId = null,
+        string? searchTerm = null,
+        string? status = null,
+        int page = 1,
+        int pageSize = 20
+    )
     {
         var builder = Builders<Event>.Filter;
         var filter = builder.Empty;
 
-        if (!string.IsNullOrEmpty(categoryId))
+        if (!string.IsNullOrWhiteSpace(categoryId))
         {
             filter &= builder.Eq(e => e.CategoryId, categoryId);
         }
 
-        if (!string.IsNullOrEmpty(searchTerm))
+        if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            filter &= builder.Regex(e => e.Title, new BsonRegularExpression(searchTerm, "i")) |
-                      builder.Regex(e => e.Description, new BsonRegularExpression(searchTerm, "i"));
+            var safeSearchTerm = Regex.Escape(searchTerm.Trim());
+
+            var searchFilter =
+                builder.Regex(e => e.Title, new BsonRegularExpression(safeSearchTerm, "i")) |
+                builder.Regex(e => e.Description, new BsonRegularExpression(safeSearchTerm, "i")) |
+                builder.Regex(e => e.Location, new BsonRegularExpression(safeSearchTerm, "i"));
+
+            filter &= searchFilter;
         }
 
-        return await _context.Events.Find(filter).ToListAsync();
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<EventStatus>(status, true, out var statusValue))
+        {
+            filter &= builder.Eq(e => e.Status, statusValue);
+        }
+
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize < 1 ? 20 : pageSize;
+        pageSize = pageSize > 100 ? 100 : pageSize;
+
+        var skip = (page - 1) * pageSize;
+
+        return await _context.Events
+            .Find(filter)
+            .SortBy(e => e.Date)
+            .Skip(skip)
+            .Limit(pageSize)
+            .ToListAsync();
     }
 
     public async Task<List<Event>> ListByOrganizerAsync(string organizerId)

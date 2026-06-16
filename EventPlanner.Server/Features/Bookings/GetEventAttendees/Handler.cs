@@ -23,14 +23,19 @@ public class GetEventAttendeesHandler : IRequestHandler<GetEventAttendeesQuery, 
     {
         var bookings = await _bookingRepository.ListByEventAsync(request.EventId);
 
+        var resultList = new List<GetEventAttendeesResponse>();
+        if (bookings == null || bookings.Count == 0)
+        {
+            return resultList;
+        }
+
         var userIds = bookings.Select(b => b.UserId).Distinct().ToList();
         var users = await _userRepository.GetByIdsAsync(userIds);
-        var usersById = users.ToDictionary(u => u.Id);
+        var usersDict = users.ToDictionary(u => u.Id);
 
-        var resultList = new List<GetEventAttendeesResponse>();
         foreach (var booking in bookings)
         {
-            if (usersById.TryGetValue(booking.UserId, out var user))
+            if (usersDict.TryGetValue(booking.UserId, out var user))
             {
                 resultList.Add(new GetEventAttendeesResponse(user.Id, user.Username, user.Email));
             }

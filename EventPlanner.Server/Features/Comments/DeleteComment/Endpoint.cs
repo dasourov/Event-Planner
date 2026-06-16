@@ -11,7 +11,7 @@ public class DeleteCommentEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapDelete("/api/events/{eventId}/comments/{commentId}", async (string eventId, string commentId, ClaimsPrincipal user, ISender sender) =>
+        app.MapDelete("/api/v1/events/{eventId}/comments/{commentId}", async (string eventId, string commentId, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))

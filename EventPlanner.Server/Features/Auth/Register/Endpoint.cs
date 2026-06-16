@@ -10,7 +10,7 @@ public class RegisterEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/auth/register", async (RegisterCommand command, ISender sender) =>
+        app.MapPost("/api/v1/auth/register", async (RegisterCommand command, ISender sender) =>
         {
             var response = await sender.Send(command);
             return Results.Ok(response);
