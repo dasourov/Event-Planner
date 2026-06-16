@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using MongoDB.Driver;
 using EventPlanner.Server.Domain.Entities;
@@ -49,5 +50,15 @@ public class MongoBookingRepository : IBookingRepository
     {
         var count = await _context.Bookings.CountDocumentsAsync(b => b.EventId == eventId);
         return (int)count;
+    }
+
+    public async Task<Dictionary<string, int>> GetAttendeeCountsAsync(IEnumerable<string> eventIds)
+    {
+        var filter = Builders<Booking>.Filter.In(b => b.EventId, eventIds);
+        var counts = await _context.Bookings.Aggregate()
+            .Match(filter)
+            .Group(b => b.EventId, g => new { EventId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        return counts.ToDictionary(c => c.EventId, c => c.Count);
     }
 }

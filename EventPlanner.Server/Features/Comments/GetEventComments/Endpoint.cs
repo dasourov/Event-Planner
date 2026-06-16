@@ -10,7 +10,7 @@ public class GetEventCommentsEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/events/{eventId}/comments", async (string eventId, ISender sender) =>
+        app.MapGet("/api/v1/events/{eventId}/comments", async (string eventId, ISender sender) =>
         {
             var response = await sender.Send(new GetEventCommentsQuery(eventId));
             return Results.Ok(response);

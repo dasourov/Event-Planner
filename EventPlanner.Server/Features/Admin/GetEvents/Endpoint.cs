@@ -5,13 +5,13 @@ using Microsoft.AspNetCore.Routing;
 using MediatR;
 using EventPlanner.Server.Common.Endpoints;
 
-namespace EventPlanner.Server.Features.Admin.ForceDeleteComment;
+namespace EventPlanner.Server.Features.Admin.GetEvents;
 
-public class ForceDeleteCommentEndpoint : IEndpoint
+public class GetEventsEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapDelete("/api/v1/admin/comments/{id}", async (string id, ClaimsPrincipal user, ISender sender) =>
+        app.MapGet("/api/v1/admin/events", async (ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
@@ -19,10 +19,10 @@ public class ForceDeleteCommentEndpoint : IEndpoint
                 return Results.Unauthorized();
             }
 
-            var response = await sender.Send(new ForceDeleteCommentCommand(id, userId));
+            var response = await sender.Send(new GetEventsQuery(userId));
             return Results.Ok(response);
         })
-        .WithName("AdminForceDeleteComment")
+        .WithName("AdminGetEvents")
         .WithTags("Admin")
         .RequireAuthorization("AdminOnly");
     }

@@ -29,20 +29,25 @@ public class GetMyBookingsHandler : IRequestHandler<GetMyBookingsQuery, List<Get
     {
         var bookings = await _bookingRepository.ListByUserAsync(request.UserId);
 
+        var resultList = new List<GetMyBookingsResponse>();
+        if (bookings == null || bookings.Count == 0)
+        {
+            return resultList;
+        }
+
         var eventIds = bookings.Select(b => b.EventId).Distinct().ToList();
         var events = await _eventRepository.GetByIdsAsync(eventIds);
-        var eventsById = events.ToDictionary(e => e.Id);
+        var eventsDict = events.ToDictionary(e => e.Id);
 
         var organizerIds = events.Select(e => e.OrganizerId).Distinct().ToList();
         var organizers = await _userRepository.GetByIdsAsync(organizerIds);
-        var organizersById = organizers.ToDictionary(u => u.Id);
+        var organizersDict = organizers.ToDictionary(u => u.Id);
 
-        var resultList = new List<GetMyBookingsResponse>();
         foreach (var booking in bookings)
         {
-            if (eventsById.TryGetValue(booking.EventId, out var @event))
+            if (eventsDict.TryGetValue(booking.EventId, out var @event))
             {
-                organizersById.TryGetValue(@event.OrganizerId, out var organizer);
+                organizersDict.TryGetValue(@event.OrganizerId, out var organizer);
                 resultList.Add(new GetMyBookingsResponse(
                     booking.Id,
                     @event.Id,

@@ -11,7 +11,7 @@ export interface ApiResponse<T> {
 
 async function request<T>(
   url: string,
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' = 'GET',
   body?: any
 ): Promise<ApiResponse<T>> {
   try {
@@ -29,7 +29,8 @@ async function request<T>(
       config.body = JSON.stringify(body);
     }
 
-    const response = await fetch(url, config);
+    const versionedUrl = url.startsWith('/api/') ? url.replace('/api/', '/api/v1/') : url;
+    const response = await fetch(versionedUrl, config);
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem('token');
@@ -67,11 +68,14 @@ export const api = {
   adminDeleteCategory: (id: string) => request<any>(`/api/admin/categories/${id}`, 'DELETE'),
 
   // Events
-  getEvents: (categoryId?: string, searchTerm?: string) => {
+  getEvents: (categoryId?: string, searchTerm?: string, status?: string, page?: number, pageSize?: number) => {
     let url = '/api/events';
     const params = new URLSearchParams();
     if (categoryId) params.append('categoryId', categoryId);
     if (searchTerm) params.append('searchTerm', searchTerm);
+    if (status) params.append('status', status);
+    if (page) params.append('page', page.toString());
+    if (pageSize) params.append('pageSize', pageSize.toString());
     const qs = params.toString();
     if (qs) url += `?${qs}`;
     return request<any[]>(url, 'GET');
@@ -98,7 +102,7 @@ export const api = {
 
   // Admin Panel User actions
   adminGetUsers: () => request<any[]>('/api/admin/users', 'GET'),
-  adminBanUser: (userId: string) => request<any>(`/api/admin/users/${userId}/ban`, 'POST'),
+  adminBanUser: (userId: string) => request<any>(`/api/admin/users/${userId}/ban`, 'PATCH'),
   adminForceDeleteEvent: (id: string) => request<any>(`/api/admin/events/${id}`, 'DELETE'),
   adminForceDeleteComment: (id: string) => request<any>(`/api/admin/comments/${id}`, 'DELETE'),
 };

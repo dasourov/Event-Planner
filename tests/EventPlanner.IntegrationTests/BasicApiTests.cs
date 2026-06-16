@@ -22,7 +22,7 @@ public class BasicApiTests : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
 
         // Act
-        var response = await client.GetAsync("/api/categories");
+        var response = await client.GetAsync("/api/v1/categories");
 
         // Assert
         response.EnsureSuccessStatusCode();
