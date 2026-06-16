@@ -11,7 +11,7 @@ public class LeaveEventEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapDelete("/api/bookings/{eventId}/leave", async (string eventId, ClaimsPrincipal user, ISender sender) =>
+        app.MapDelete("/api/v1/bookings/{eventId}/leave", async (string eventId, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))

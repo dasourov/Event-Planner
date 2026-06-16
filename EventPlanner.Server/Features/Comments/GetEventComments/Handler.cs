@@ -24,9 +24,18 @@ public class GetEventCommentsHandler : IRequestHandler<GetEventCommentsQuery, Li
         var comments = await _commentRepository.ListByEventAsync(request.EventId);
         var responseList = new List<GetEventCommentsResponse>();
 
+        if (comments == null || comments.Count == 0)
+        {
+            return responseList;
+        }
+
+        var userIds = comments.Select(c => c.UserId).Distinct().ToList();
+        var users = await _userRepository.GetByIdsAsync(userIds);
+        var usersDict = users.ToDictionary(u => u.Id);
+
         foreach (var comment in comments)
         {
-            var user = await _userRepository.GetByIdAsync(comment.UserId);
+            usersDict.TryGetValue(comment.UserId, out var user);
             responseList.Add(new GetEventCommentsResponse(
                 comment.Id,
                 comment.EventId,

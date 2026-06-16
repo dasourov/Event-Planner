@@ -11,7 +11,7 @@ public class BanUserEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPatch("/api/admin/users/{userId}/ban", async (string userId, ClaimsPrincipal user, ISender sender) =>
+        app.MapPatch("/api/v1/admin/users/{userId}/ban", async (string userId, ClaimsPrincipal user, ISender sender) =>
         {
             var adminUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(adminUserId))

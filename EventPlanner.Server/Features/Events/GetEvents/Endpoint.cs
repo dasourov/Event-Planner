@@ -10,7 +10,7 @@ public class GetEventsEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/events", async (
+        app.MapGet("/api/v1/events", async (
             string? categoryId,
             string? searchTerm,
             string? status,

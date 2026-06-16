@@ -11,7 +11,7 @@ public class CancelEventEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/events/{id}/cancel", async (string id, ClaimsPrincipal user, ISender sender) =>
+        app.MapPost("/api/v1/events/{id}/cancel", async (string id, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))

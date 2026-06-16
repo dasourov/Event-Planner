@@ -26,6 +26,7 @@ public class CreateEventHandlerTests
     public async Task Handle_ShouldCreateEvent_WhenCategoryExists()
     {
         // Arrange
+        var categoryId = "507f1f77bcf86cd799439011";
         var command = new CreateEventCommand(
             "Tech Conference",
             "A conference about new tech",
@@ -33,11 +34,11 @@ public class CreateEventHandlerTests
             40.7128,
             -74.0060,
             DateTime.UtcNow.AddDays(5),
-            "cat123",
+            categoryId,
             100,
             "user123"
         );
-        var category = new Category { Id = "cat123", Name = "Tech" };
+        var category = new Category { Id = categoryId, Name = "Tech" };
         _categoryRepositoryMock.Setup(repo => repo.GetByIdAsync(command.CategoryId)).ReturnsAsync(category);
 
         // Act
@@ -53,7 +54,7 @@ public class CreateEventHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ShouldThrowException_WhenCategoryDoesNotExist()
+    public async Task Handle_ShouldResolveToGeneralCategory_WhenCategoryDoesNotExist()
     {
         // Arrange
         var command = new CreateEventCommand(
@@ -67,10 +68,17 @@ public class CreateEventHandlerTests
             100,
             "user123"
         );
-        _categoryRepositoryMock.Setup(repo => repo.GetByIdAsync(command.CategoryId)).ReturnsAsync((Category?)null);
+        _categoryRepositoryMock.Setup(repo => repo.GetByNameAsync("General")).ReturnsAsync((Category?)null);
 
-        // Act & Assert
-        await Assert.ThrowsAsync<Exception>(() => _handler.Handle(command, CancellationToken.None));
-        _eventRepositoryMock.Verify(repo => repo.CreateAsync(It.IsAny<Event>()), Times.Never);
+        // Act
+        var response = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(response);
+        Assert.Equal(command.Title, response.Title);
+        Assert.Equal(command.OrganizerId, response.OrganizerId);
+        Assert.Equal("Draft", response.Status);
+        _categoryRepositoryMock.Verify(repo => repo.CreateAsync(It.Is<Category>(c => c.Name == "General")), Times.Once);
+        _eventRepositoryMock.Verify(repo => repo.CreateAsync(It.IsAny<Event>()), Times.Once);
     }
 }
