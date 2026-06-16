@@ -11,7 +11,7 @@ public class GetUsersEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/v1/admin/users", async (ClaimsPrincipal user, ISender sender) =>
+        app.MapGet("/admin/users", async (ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))

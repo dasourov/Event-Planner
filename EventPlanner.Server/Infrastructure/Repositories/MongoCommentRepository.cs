@@ -1,6 +1,7 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using MongoDB.Driver;
+using Microsoft.EntityFrameworkCore;
 using EventPlanner.Server.Domain.Entities;
 using EventPlanner.Server.Infrastructure.Persistence;
 
@@ -17,31 +18,40 @@ public class MongoCommentRepository : ICommentRepository
 
     public async Task<Comment?> GetByIdAsync(string id)
     {
-        return await _context.Comments.Find(c => c.Id == id).FirstOrDefaultAsync();
+        return await _context.Comments.FirstOrDefaultAsync(c => c.Id == id);
     }
 
     public async Task CreateAsync(Comment comment)
     {
-        await _context.Comments.InsertOneAsync(comment);
+        await _context.Comments.AddAsync(comment);
+        await _context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(Comment comment)
     {
-        await _context.Comments.ReplaceOneAsync(c => c.Id == comment.Id, comment);
+        _context.Comments.Update(comment);
+        await _context.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(string id)
     {
-        await _context.Comments.DeleteOneAsync(c => c.Id == id);
+        var comment = await _context.Comments.FirstOrDefaultAsync(c => c.Id == id);
+        if (comment != null)
+        {
+            _context.Comments.Remove(comment);
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task DeleteManyAsync(List<string> ids)
     {
-        await _context.Comments.DeleteManyAsync(c => ids.Contains(c.Id));
+        var comments = await _context.Comments.Where(c => ids.Contains(c.Id)).ToListAsync();
+        _context.Comments.RemoveRange(comments);
+        await _context.SaveChangesAsync();
     }
 
     public async Task<List<Comment>> ListByEventAsync(string eventId)
     {
-        return await _context.Comments.Find(c => c.EventId == eventId).ToListAsync();
+        return await _context.Comments.Where(c => c.EventId == eventId).ToListAsync();
     }
 }

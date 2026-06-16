@@ -60,6 +60,11 @@ export const api = {
   register: (body: any) => request<any>('/api/auth/register', 'POST', body),
   login: (body: any) => request<any>('/api/auth/login', 'POST', body),
   me: () => request<any>('/api/auth/me', 'GET'),
+  checkAvailability: (username?: string, email?: string) =>
+    request<{ usernameExists: boolean; emailExists: boolean }>(
+      `/api/auth/check-availability?username=${encodeURIComponent(username || '')}&email=${encodeURIComponent(email || '')}`,
+      'GET'
+    ),
 
   // Categories
   getCategories: () => request<any[]>('/api/categories', 'GET'),

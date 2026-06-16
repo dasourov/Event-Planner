@@ -5,11 +5,19 @@ using System.Threading.Tasks;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 
 namespace EventPlanner.Server.Common.Errors;
 
 public class GlobalExceptionHandler : IExceptionHandler
 {
+    private readonly IProblemDetailsService _problemDetailsService;
+
+    public GlobalExceptionHandler(IProblemDetailsService problemDetailsService)
+    {
+        _problemDetailsService = problemDetailsService;
+    }
+
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
         var (statusCode, title) = exception switch
@@ -26,13 +34,18 @@ public class GlobalExceptionHandler : IExceptionHandler
             : exception.Message;
 
         httpContext.Response.StatusCode = statusCode;
-        await httpContext.Response.WriteAsJsonAsync(new
-        {
-            title,
-            status = statusCode,
-            detail
-        }, cancellationToken);
 
-        return true;
+        return await _problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+        {
+            HttpContext = httpContext,
+            Exception = exception,
+            ProblemDetails = new ProblemDetails
+            {
+                Status = statusCode,
+                Title = title,
+                Detail = detail,
+                Instance = httpContext.Request.Path
+            }
+        });
     }
 }

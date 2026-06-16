@@ -11,7 +11,7 @@ public class DeleteCategoryEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapDelete("/api/v1/admin/categories/{id}", async (string id, ClaimsPrincipal user, ISender sender) =>
+        app.MapDelete("/admin/categories/{id}", async (string id, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))

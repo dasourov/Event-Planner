@@ -11,7 +11,7 @@ public class UpdateEventEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPut("/api/v1/events/{id}", async (string id, UpdateEventRequest req, ClaimsPrincipal user, ISender sender) =>
+        app.MapPut("/events/{id}", async (string id, UpdateEventRequest req, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))

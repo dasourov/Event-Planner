@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
+using System.Linq;
 using System.Threading.Tasks;
-using MongoDB.Driver;
-using MongoDB.Bson;
+using Microsoft.EntityFrameworkCore;
 using EventPlanner.Server.Domain.Entities;
 using EventPlanner.Server.Domain.Enums;
 using EventPlanner.Server.Infrastructure.Persistence;
@@ -21,28 +20,34 @@ public class MongoEventRepository : IEventRepository
 
     public async Task<Event?> GetByIdAsync(string id)
     {
-        return await _context.Events.Find(e => e.Id == id).FirstOrDefaultAsync();
+        return await _context.Events.FirstOrDefaultAsync(e => e.Id == id);
     }
 
     public async Task<List<Event>> GetByIdsAsync(IEnumerable<string> ids)
     {
-        var filter = Builders<Event>.Filter.In(e => e.Id, ids);
-        return await _context.Events.Find(filter).ToListAsync();
+        return await _context.Events.Where(e => ids.Contains(e.Id)).ToListAsync();
     }
 
     public async Task CreateAsync(Event @event)
     {
-        await _context.Events.InsertOneAsync(@event);
+        await _context.Events.AddAsync(@event);
+        await _context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(Event @event)
     {
-        await _context.Events.ReplaceOneAsync(e => e.Id == @event.Id, @event);
+        _context.Events.Update(@event);
+        await _context.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(string id)
     {
-        await _context.Events.DeleteOneAsync(e => e.Id == id);
+        var @event = await _context.Events.FirstOrDefaultAsync(e => e.Id == id);
+        if (@event != null)
+        {
+            _context.Events.Remove(@event);
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task<List<Event>> ListAsync(
@@ -53,30 +58,25 @@ public class MongoEventRepository : IEventRepository
         int pageSize = 20
     )
     {
-        var builder = Builders<Event>.Filter;
-        var filter = builder.Empty;
+        var query = _context.Events.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(categoryId))
         {
-            filter &= builder.Eq(e => e.CategoryId, categoryId);
+            query = query.Where(e => e.CategoryId == categoryId);
         }
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            var safeSearchTerm = Regex.Escape(searchTerm.Trim());
-
-            var searchFilter =
-                builder.Regex(e => e.Title, new BsonRegularExpression(safeSearchTerm, "i")) |
-                builder.Regex(e => e.Description, new BsonRegularExpression(safeSearchTerm, "i")) |
-                builder.Regex(e => e.Location, new BsonRegularExpression(safeSearchTerm, "i"));
-
-            filter &= searchFilter;
+            var term = searchTerm.Trim().ToLower();
+            query = query.Where(e => e.Title.ToLower().Contains(term) ||
+                                     e.Description.ToLower().Contains(term) ||
+                                     e.Location.ToLower().Contains(term));
         }
 
         if (!string.IsNullOrWhiteSpace(status) &&
             Enum.TryParse<EventStatus>(status, true, out var statusValue))
         {
-            filter &= builder.Eq(e => e.Status, statusValue);
+            query = query.Where(e => e.Status == statusValue);
         }
 
         page = page < 1 ? 1 : page;
@@ -85,21 +85,20 @@ public class MongoEventRepository : IEventRepository
 
         var skip = (page - 1) * pageSize;
 
-        return await _context.Events
-            .Find(filter)
-            .SortBy(e => e.Date)
+        return await query
+            .OrderBy(e => e.Date)
             .Skip(skip)
-            .Limit(pageSize)
+            .Take(pageSize)
             .ToListAsync();
     }
 
     public async Task<List<Event>> ListByOrganizerAsync(string organizerId)
     {
-        return await _context.Events.Find(e => e.OrganizerId == organizerId).ToListAsync();
+        return await _context.Events.Where(e => e.OrganizerId == organizerId).ToListAsync();
     }
 
     public async Task<List<Event>> ListPublishedAsync()
     {
-        return await _context.Events.Find(e => e.Status == EventStatus.Published).ToListAsync();
+        return await _context.Events.Where(e => e.Status == EventStatus.Published).ToListAsync();
     }
 }

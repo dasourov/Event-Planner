@@ -1,6 +1,7 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using MongoDB.Driver;
+using Microsoft.EntityFrameworkCore;
 using EventPlanner.Server.Domain.Entities;
 using EventPlanner.Server.Infrastructure.Persistence;
 
@@ -17,37 +18,38 @@ public class MongoUserRepository : IUserRepository
 
     public async Task<User?> GetByIdAsync(string id)
     {
-        return await _context.Users.Find(u => u.Id == id).FirstOrDefaultAsync();
+        return await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
     }
 
     public async Task<List<User>> GetByIdsAsync(IEnumerable<string> ids)
     {
-        var filter = Builders<User>.Filter.In(u => u.Id, ids);
-        return await _context.Users.Find(filter).ToListAsync();
+        return await _context.Users.Where(u => ids.Contains(u.Id)).ToListAsync();
     }
 
     public async Task<User?> GetByEmailAsync(string email)
     {
-        return await _context.Users.Find(u => u.Email == email).FirstOrDefaultAsync();
+        return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
     }
 
     public async Task<User?> GetByUsernameAsync(string username)
     {
-        return await _context.Users.Find(u => u.Username == username).FirstOrDefaultAsync();
+        return await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
     }
 
     public async Task CreateAsync(User user)
     {
-        await _context.Users.InsertOneAsync(user);
+        await _context.Users.AddAsync(user);
+        await _context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(User user)
     {
-        await _context.Users.ReplaceOneAsync(u => u.Id == user.Id, user);
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
     }
 
     public async Task<List<User>> ListAsync()
     {
-        return await _context.Users.Find(_ => true).ToListAsync();
+        return await _context.Users.ToListAsync();
     }
 }

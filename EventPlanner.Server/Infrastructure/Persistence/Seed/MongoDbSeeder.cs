@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using MongoDB.Driver;
+using Microsoft.EntityFrameworkCore;
 using EventPlanner.Server.Domain.Entities;
 using EventPlanner.Server.Domain.Enums;
 using EventPlanner.Server.Infrastructure.Auth;
@@ -43,16 +43,17 @@ public class MongoDbSeeder
             new() { Name = "Food", Description = "Culinary experiences, tastings, and cooking classes" }
         };
 
-        var existing = await _context.Categories.Find(_ => true).ToListAsync();
+        var existing = await _context.Categories.ToListAsync();
         var existingNames = existing.Select(c => c.Name).ToHashSet();
         var toInsert = desired.Where(d => !existingNames.Contains(d.Name)).ToList();
 
         if (toInsert.Count > 0)
         {
-            await _context.Categories.InsertManyAsync(toInsert);
+            await _context.Categories.AddRangeAsync(toInsert);
+            await _context.SaveChangesAsync();
         }
 
-        return await _context.Categories.Find(_ => true).ToListAsync();
+        return await _context.Categories.ToListAsync();
     }
 
     private async Task<List<User>> SeedUsersAsync()
@@ -116,24 +117,25 @@ public class MongoDbSeeder
             }
         };
 
-        var existing = await _context.Users.Find(_ => true).ToListAsync();
+        var existing = await _context.Users.ToListAsync();
         var existingEmails = existing.Select(u => u.Email).ToHashSet();
         var toInsert = desired.Where(d => !existingEmails.Contains(d.Email)).ToList();
 
         if (toInsert.Count > 0)
         {
-            await _context.Users.InsertManyAsync(toInsert);
+            await _context.Users.AddRangeAsync(toInsert);
+            await _context.SaveChangesAsync();
         }
 
-        return await _context.Users.Find(_ => true).ToListAsync();
+        return await _context.Users.ToListAsync();
     }
 
     private async Task<List<Event>> SeedEventsAsync(List<Category> categories, List<User> users)
     {
-        var count = await _context.Events.CountDocumentsAsync(_ => true);
+        var count = await _context.Events.CountAsync();
         if (count > 0)
         {
-            return await _context.Events.Find(_ => true).ToListAsync();
+            return await _context.Events.ToListAsync();
         }
 
         var tech = categories.First(c => c.Name == "Technology");
@@ -295,13 +297,14 @@ public class MongoDbSeeder
             }
         };
 
-        await _context.Events.InsertManyAsync(events);
+        await _context.Events.AddRangeAsync(events);
+        await _context.SaveChangesAsync();
         return events;
     }
 
     private async Task SeedBookingsAsync(List<Event> events, List<User> users)
     {
-        var count = await _context.Bookings.CountDocumentsAsync(_ => true);
+        var count = await _context.Bookings.CountAsync();
         if (count > 0) return;
 
         var user = users.First(u => u.Username == "user");
@@ -315,13 +318,11 @@ public class MongoDbSeeder
         var now = DateTime.UtcNow;
         var bookings = new List<Booking>();
 
-        // "user" books every published event — gives "My Bookings" page a populated list
         foreach (var ev in published)
         {
             bookings.Add(new Booking { UserId = user.Id, EventId = ev.Id, BookedAt = now });
         }
 
-        // Other users sprinkle bookings across events to make attendee lists non-trivial
         if (published.Count >= 2)
         {
             bookings.Add(new Booking { UserId = alice.Id, EventId = published[1].Id, BookedAt = now });
@@ -336,12 +337,13 @@ public class MongoDbSeeder
             bookings.Add(new Booking { UserId = charlie.Id, EventId = published[3].Id, BookedAt = now });
         }
 
-        await _context.Bookings.InsertManyAsync(bookings);
+        await _context.Bookings.AddRangeAsync(bookings);
+        await _context.SaveChangesAsync();
     }
 
     private async Task SeedCommentsAsync(List<Event> events, List<User> users)
     {
-        var count = await _context.Comments.CountDocumentsAsync(_ => true);
+        var count = await _context.Comments.CountAsync();
         if (count > 0) return;
 
         var user = users.First(u => u.Username == "user");
@@ -383,6 +385,7 @@ public class MongoDbSeeder
             comments.Add(new Comment { EventId = ev.Id, UserId = user.Id, Content = "Will there be guided tours?", CreatedAt = now.AddHours(-2) });
         }
 
-        await _context.Comments.InsertManyAsync(comments);
+        await _context.Comments.AddRangeAsync(comments);
+        await _context.SaveChangesAsync();
     }
 }

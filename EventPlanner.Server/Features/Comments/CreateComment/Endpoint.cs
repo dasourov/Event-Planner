@@ -11,7 +11,7 @@ public class CreateCommentEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/v1/events/{eventId}/comments", async (string eventId, CreateCommentRequest req, ClaimsPrincipal user, ISender sender) =>
+        app.MapPost("/events/{eventId}/comments", async (string eventId, CreateCommentRequest req, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))

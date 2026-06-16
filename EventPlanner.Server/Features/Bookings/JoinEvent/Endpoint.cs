@@ -11,7 +11,7 @@ public class JoinEventEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/v1/bookings/{eventId}/join", async (string eventId, ClaimsPrincipal user, ISender sender) =>
+        app.MapPost("/bookings/{eventId}/join", async (string eventId, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))

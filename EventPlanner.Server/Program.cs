@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using MongoDB.Driver;
 using FluentValidation;
 using MediatR;
@@ -31,8 +32,8 @@ builder.Services.AddSignalR();
 // Bind Settings
 builder.Services.Configure<MongoDbSettings>(builder.Configuration.GetSection("MongoDb"));
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
-// MongoDB Client
-builder.Services.AddSingleton<IMongoClient>(sp =>
+// Configure MongoDB Context (EF Core)
+builder.Services.AddDbContext<MongoDbContext>((sp, options) =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
 
@@ -49,11 +50,10 @@ builder.Services.AddSingleton<IMongoClient>(sp =>
         connectionString = "mongodb://localhost:27017";
     }
 
-    return new MongoClient(connectionString);
-});
+    var dbName = configuration["MongoDb:DatabaseName"] ?? "gather";
 
-// MongoDbContext
-builder.Services.AddSingleton<MongoDbContext>();
+    options.UseMongoDB(connectionString, dbName);
+});
 
 // Repositories
 builder.Services.AddScoped<IUserRepository, MongoUserRepository>();
