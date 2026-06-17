@@ -8,6 +8,7 @@ using MediatR;
 using EventPlanner.Server.Common.Endpoints;
 using EventPlanner.Server.Common.Behaviors;
 using EventPlanner.Server.Common.Errors;
+using Scalar.AspNetCore;
 using EventPlanner.Server.Infrastructure.Persistence;
 using EventPlanner.Server.Infrastructure.Persistence.Seed;
 using EventPlanner.Server.Infrastructure.Repositories;
@@ -140,6 +141,7 @@ app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.UseAuthentication();
