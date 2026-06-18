@@ -45,21 +45,39 @@ The result is a small but complete event lifecycle: **draft → publish → fill
 ## Architecture
 
 ```
-                         ┌────────────────────────────────┐
-                         │       EventPlanner.AppHost        │
-                         │      (.NET Aspire orchestrator)   │
-                         └────────────────┬───────────────────┘
-                                          │ provisions + injects connection strings / env vars
-              ┌────────────────────────────┼────────────────────────────┐
-              ▼                            ▼                            ▼
-   ┌────────────────────┐      ┌─────────────────────────┐   ┌───────────────────────┐
-   │      MongoDB          │◄────┤   EventPlanner.Server     │────►│  frontend (Vite/React)  │
-   │  container or Atlas   │      │   ASP.NET Core 10 API      │      │   served via dev proxy   │
-   └────────────────────┘      └─────────────────────────┘   └───────────────────────┘
-                                          ▲      ▲
-                                /api/v1/* │      │ /hubs/comments (WebSocket)
-                                          │      │
-                                   REST requests   live comment events
+┌───────────────────────────────┐
+│     EventPlanner.AppHost      │
+│  (.NET Aspire orchestrator)   │
+└───────────────────────────────┘
+                │
+                ▼
+                  provisions resources, injects connection
+                  strings / env vars
+                │
+                ▼
+┌───────────────────────────────┐
+│            MongoDB            │
+│     (container or Atlas)      │
+└───────────────────────────────┘
+                ▲
+                │ MongoDB EF Core provider + native driver
+                │
+┌───────────────────────────────┐
+│      EventPlanner.Server      │
+│      ASP.NET Core 10 API      │
+└───────────────────────────────┘
+                │
+        ┌───────┴───────┐
+        ▼               ▼
+    /api/v1/*    /hubs/comments
+     (REST)        (WebSocket)
+        │               │
+        └───────┬───────┘
+                ▼
+┌───────────────────────────────┐
+│     frontend (Vite/React)     │
+│     served via dev proxy      │
+└───────────────────────────────┘
 ```
 
 **Request pipeline inside the API**, for every command/query:
