@@ -12,10 +12,11 @@ public interface IEventRepository
     Task UpdateAsync(Event @event);
     Task DeleteAsync(string id);
 
-    Task<List<Event>> ListAsync(
+    Task<(List<Event> Events, int TotalCount)> ListAsync(
         string? categoryId = null,
         string? searchTerm = null,
         string? status = null,
+        string? organizerId = null,
         int page = 1,
         int pageSize = 20
     );

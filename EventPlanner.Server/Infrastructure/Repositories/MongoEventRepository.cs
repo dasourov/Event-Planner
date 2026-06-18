@@ -19,14 +19,10 @@ public class MongoEventRepository : IEventRepository
     }
 
     public async Task<Event?> GetByIdAsync(string id)
-    {
-        return await _context.Events.FirstOrDefaultAsync(e => e.Id == id);
-    }
+        => await _context.Events.FirstOrDefaultAsync(e => e.Id == id);
 
     public async Task<List<Event>> GetByIdsAsync(IEnumerable<string> ids)
-    {
-        return await _context.Events.Where(e => ids.Contains(e.Id)).ToListAsync();
-    }
+        => await _context.Events.Where(e => ids.Contains(e.Id)).ToListAsync();
 
     public async Task CreateAsync(Event @event)
     {
@@ -50,10 +46,11 @@ public class MongoEventRepository : IEventRepository
         }
     }
 
-    public async Task<List<Event>> ListAsync(
+    public async Task<(List<Event> Events, int TotalCount)> ListAsync(
         string? categoryId = null,
         string? searchTerm = null,
         string? status = null,
+        string? organizerId = null,
         int page = 1,
         int pageSize = 20
     )
@@ -61,9 +58,7 @@ public class MongoEventRepository : IEventRepository
         var query = _context.Events.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(categoryId))
-        {
             query = query.Where(e => e.CategoryId == categoryId);
-        }
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -75,30 +70,29 @@ public class MongoEventRepository : IEventRepository
 
         if (!string.IsNullOrWhiteSpace(status) &&
             Enum.TryParse<EventStatus>(status, true, out var statusValue))
-        {
             query = query.Where(e => e.Status == statusValue);
-        }
+
+        if (!string.IsNullOrWhiteSpace(organizerId))
+            query = query.Where(e => e.OrganizerId == organizerId);
+
+        var totalCount = await query.CountAsync();
 
         page = page < 1 ? 1 : page;
         pageSize = pageSize < 1 ? 20 : pageSize;
         pageSize = pageSize > 100 ? 100 : pageSize;
 
-        var skip = (page - 1) * pageSize;
-
-        return await query
+        var items = await query
             .OrderBy(e => e.Date)
-            .Skip(skip)
+            .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
+
+        return (items, totalCount);
     }
 
     public async Task<List<Event>> ListByOrganizerAsync(string organizerId)
-    {
-        return await _context.Events.Where(e => e.OrganizerId == organizerId).ToListAsync();
-    }
+        => await _context.Events.Where(e => e.OrganizerId == organizerId).ToListAsync();
 
     public async Task<List<Event>> ListPublishedAsync()
-    {
-        return await _context.Events.Where(e => e.Status == EventStatus.Published).ToListAsync();
-    }
+        => await _context.Events.Where(e => e.Status == EventStatus.Published).ToListAsync();
 }

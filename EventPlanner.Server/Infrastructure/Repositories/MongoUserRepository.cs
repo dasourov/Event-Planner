@@ -17,24 +17,16 @@ public class MongoUserRepository : IUserRepository
     }
 
     public async Task<User?> GetByIdAsync(string id)
-    {
-        return await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
-    }
+        => await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
 
     public async Task<List<User>> GetByIdsAsync(IEnumerable<string> ids)
-    {
-        return await _context.Users.Where(u => ids.Contains(u.Id)).ToListAsync();
-    }
+        => await _context.Users.Where(u => ids.Contains(u.Id)).ToListAsync();
 
     public async Task<User?> GetByEmailAsync(string email)
-    {
-        return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-    }
+        => await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 
     public async Task<User?> GetByUsernameAsync(string username)
-    {
-        return await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
-    }
+        => await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
 
     public async Task CreateAsync(User user)
     {
@@ -49,7 +41,5 @@ public class MongoUserRepository : IUserRepository
     }
 
     public async Task<List<User>> ListAsync()
-    {
-        return await _context.Users.ToListAsync();
-    }
+        => await _context.Users.ToListAsync();
 }

@@ -14,6 +14,7 @@ public class GetEventsEndpoint : IEndpoint
             string? categoryId,
             string? searchTerm,
             string? status,
+            string? organizerId,
             int? page,
             int? pageSize,
             ISender sender) =>
@@ -22,6 +23,7 @@ public class GetEventsEndpoint : IEndpoint
                 categoryId,
                 searchTerm,
                 status,
+                organizerId,
                 page ?? 1,
                 pageSize ?? 20
             ));

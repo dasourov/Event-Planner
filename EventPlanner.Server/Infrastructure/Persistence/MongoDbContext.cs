@@ -15,6 +15,10 @@ public class MongoDbContext : DbContext
     public MongoDbContext(DbContextOptions<MongoDbContext> options)
         : base(options)
     {
+        // Standalone MongoDB (single Docker node) does not support multi-document
+        // transactions. Disable AutoTransactionBehavior so SaveChanges works without
+        // a replica set. Each write is still atomic at the single-document level.
+        Database.AutoTransactionBehavior = AutoTransactionBehavior.Never;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

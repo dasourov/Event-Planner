@@ -38,6 +38,7 @@ public class CreateEventHandler : IRequestHandler<CreateEventCommand, CreateEven
             Date = request.Date,
             CategoryId = category.Id,
             MaxAttendees = request.MaxAttendees,
+            ImageUrl = request.ImageUrl,
             OrganizerId = request.OrganizerId,
             Status = EventStatus.Draft,
             CreatedAt = DateTime.UtcNow
@@ -50,6 +51,7 @@ public class CreateEventHandler : IRequestHandler<CreateEventCommand, CreateEven
             @event.Title,
             @event.Description,
             @event.Location,
+            @event.ImageUrl,
             @event.Latitude,
             @event.Longitude,
             @event.Date,
@@ -118,6 +120,8 @@ public class CreateEventHandler : IRequestHandler<CreateEventCommand, CreateEven
             "networking" => "Networking",
             "workshop" => "Workshop",
             "music" => "Music",
+            "sports" => "Sports",
+            "food" => "Food",
 
             _ => "General"
         };

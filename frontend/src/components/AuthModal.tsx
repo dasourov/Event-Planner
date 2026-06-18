@@ -22,6 +22,8 @@ interface AuthModalProps {
   onRegisterPasswordChange: (val: string) => void;
   registerConfirmPassword: string;
   onRegisterConfirmPasswordChange: (val: string) => void;
+  registerIsOrganizer: boolean;
+  onRegisterIsOrganizerChange: (val: boolean) => void;
   onRegisterSubmit: (e: React.FormEvent) => void;
 }
 
@@ -45,6 +47,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onRegisterPasswordChange,
   registerConfirmPassword,
   onRegisterConfirmPasswordChange,
+  registerIsOrganizer,
+  onRegisterIsOrganizerChange,
   onRegisterSubmit
 }) => {
   // Client-side username length validation
@@ -76,7 +80,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
       <div className="bg-white rounded-3xl max-w-sm w-full overflow-hidden border border-slate-200 shadow-2xl relative">
-        
+
         {/* Dedicated Modal Header */}
         <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-100 bg-slate-50/50">
           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Account Access</span>
@@ -165,13 +169,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   placeholder="e.g. gatherer99"
                   value={registerUsername}
                   onChange={(e) => onRegisterUsernameChange(e.target.value)}
-                  className={`w-full p-2.5 bg-slate-50 text-slate-800 rounded-xl border focus:outline-none focus:bg-white focus:ring-1 text-xs ${
-                    registerUsername.length > 0 && !isUsernameTooShort
+                  className={`w-full p-2.5 bg-slate-50 text-slate-800 rounded-xl border focus:outline-none focus:bg-white focus:ring-1 text-xs ${registerUsername.length > 0 && !isUsernameTooShort
                       ? 'border-emerald-200 focus:ring-emerald-500'
                       : isUsernameTooShort
-                      ? 'border-rose-200 focus:ring-rose-500'
-                      : 'border-slate-100 focus:ring-[#4648d4]'
-                  }`}
+                        ? 'border-rose-200 focus:ring-rose-500'
+                        : 'border-slate-100 focus:ring-[#4648d4]'
+                    }`}
                 />
                 {isUsernameTooShort && (
                   <p className="text-[10px] text-rose-500 font-bold flex items-center gap-0.5 mt-0.5">
@@ -189,19 +192,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   placeholder="e.g. join@gatherpulse.com"
                   value={registerEmail}
                   onChange={(e) => onRegisterEmailChange(e.target.value)}
-                  className={`w-full p-2.5 bg-slate-50 text-slate-800 rounded-xl border focus:outline-none focus:bg-white focus:ring-1 text-xs ${
-                    registerEmail.length > 0 && !isEmailInvalid
+                  className={`w-full p-2.5 bg-slate-50 text-slate-800 rounded-xl border focus:outline-none focus:bg-white focus:ring-1 text-xs ${registerEmail.length > 0 && !isEmailInvalid
                       ? 'border-emerald-200 focus:ring-emerald-500'
                       : isEmailInvalid
-                      ? 'border-rose-200 focus:ring-rose-500'
-                      : 'border-slate-100 focus:ring-[#4648d4]'
-                  }`}
+                        ? 'border-rose-200 focus:ring-rose-500'
+                        : 'border-slate-100 focus:ring-[#4648d4]'
+                    }`}
                 />
                 {isEmailInvalid && (
                   <p className="text-[10px] text-rose-500 font-bold flex items-center gap-0.5 mt-0.5">
                     <span className="material-symbols-outlined text-[13px]">mail</span> Please enter a valid email address
                   </p>
                 )}
+              </div>
+
+              {/* Account Type Choice */}
+              <div className="space-y-1 text-left">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Account Type</label>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => onRegisterIsOrganizerChange(false)}
+                    className={`py-2 text-[10px] font-extrabold rounded-xl border transition-all ${!registerIsOrganizer
+                        ? 'bg-[#4648d4]/10 border-[#4648d4] text-[#4648d4]'
+                        : 'bg-slate-50 border-slate-100 text-slate-400 hover:text-slate-600'
+                      }`}
+                  >
+                    Attendee
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRegisterIsOrganizerChange(true)}
+                    className={`py-2 text-[10px] font-extrabold rounded-xl border transition-all ${registerIsOrganizer
+                        ? 'bg-[#4648d4]/10 border-[#4648d4] text-[#4648d4]'
+                        : 'bg-slate-50 border-slate-100 text-slate-400 hover:text-slate-600'
+                      }`}
+                  >
+                    Organizer
+                  </button>
+                </div>
               </div>
 
               {/* Password Input with Requirements Checklist */}
@@ -213,13 +242,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   placeholder="••••••••"
                   value={registerPassword}
                   onChange={(e) => onRegisterPasswordChange(e.target.value)}
-                  className={`w-full p-2.5 bg-slate-50 text-slate-800 rounded-xl border focus:outline-none focus:bg-white focus:ring-1 text-xs ${
-                    registerPassword.length > 0
+                  className={`w-full p-2.5 bg-slate-50 text-slate-800 rounded-xl border focus:outline-none focus:bg-white focus:ring-1 text-xs ${registerPassword.length > 0
                       ? isPasswordValid
                         ? 'border-emerald-200 focus:ring-emerald-500'
                         : 'border-rose-200 focus:ring-rose-500'
                       : 'border-slate-100 focus:ring-[#4648d4]'
-                  }`}
+                    }`}
                 />
                 {registerPassword.length > 0 && (
                   <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl space-y-1 mt-1">
@@ -251,13 +279,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   placeholder="Confirm entry"
                   value={registerConfirmPassword}
                   onChange={(e) => onRegisterConfirmPasswordChange(e.target.value)}
-                  className={`w-full p-2.5 bg-slate-50 text-slate-800 rounded-xl border focus:outline-none focus:bg-white focus:ring-1 text-xs ${
-                    registerConfirmPassword.length > 0
+                  className={`w-full p-2.5 bg-slate-50 text-slate-800 rounded-xl border focus:outline-none focus:bg-white focus:ring-1 text-xs ${registerConfirmPassword.length > 0
                       ? confirmMatch
                         ? 'border-emerald-200 focus:ring-emerald-500'
                         : 'border-rose-200 focus:ring-rose-500'
                       : 'border-slate-100 focus:ring-[#4648d4]'
-                  }`}
+                    }`}
                 />
                 {registerConfirmPassword.length > 0 && (
                   confirmMatch ? (
@@ -276,11 +303,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="submit"
                 disabled={!isFormValid}
-                className={`w-full py-2.5 font-bold rounded-xl text-xs uppercase tracking-wider transition-colors shadow-sm ${
-                  isFormValid
+                className={`w-full py-2.5 font-bold rounded-xl text-xs uppercase tracking-wider transition-colors shadow-sm ${isFormValid
                     ? 'bg-[#4648d4] hover:bg-[#3738bd] text-white cursor-pointer'
                     : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200/50'
-                }`}
+                  }`}
               >
                 Register
               </button>

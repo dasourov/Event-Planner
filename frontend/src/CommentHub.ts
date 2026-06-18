@@ -1,8 +1,11 @@
 import * as signalR from '@microsoft/signalr';
 
+export type CommentHubConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
+
 export class CommentHubConnection {
   private connection: signalR.HubConnection | null = null;
   private eventId: string;
+  private joined = false;
 
   constructor(eventId: string) {
     this.eventId = eventId;
@@ -11,47 +14,76 @@ export class CommentHubConnection {
   public async start(
     onCommentCreated: (comment: any) => void,
     onCommentUpdated: (comment: any) => void,
-    onCommentDeleted: (commentId: string) => void
+    onCommentDeleted: (commentId: string) => void,
+    onConnectionStateChange?: (state: CommentHubConnectionState) => void
   ) {
-    const token = localStorage.getItem('token');
-    
+    if (this.connection) {
+      await this.stop();
+    }
+
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(token ? `/hubs/comments?access_token=${token}` : '/hubs/comments')
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Information)
+      .withUrl('/hubs/comments', {
+        accessTokenFactory: () => localStorage.getItem('token') ?? '',
+        transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.ServerSentEvents | signalR.HttpTransportType.LongPolling,
+      })
+      .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+      .configureLogging(signalR.LogLevel.Warning)
       .build();
 
-    this.connection.on('CommentCreated', (comment: any) => {
-      onCommentCreated(comment);
+    this.connection.on('CommentCreated', onCommentCreated);
+    this.connection.on('CommentUpdated', onCommentUpdated);
+    this.connection.on('CommentDeleted', onCommentDeleted);
+
+    this.connection.onreconnecting(() => {
+      this.joined = false;
+      onConnectionStateChange?.('reconnecting');
     });
 
-    this.connection.on('CommentUpdated', (comment: any) => {
-      onCommentUpdated(comment);
+    this.connection.onreconnected(async () => {
+      try {
+        await this.joinGroup();
+        onConnectionStateChange?.('connected');
+      } catch (err) {
+        console.error('Error rejoining SignalR group after reconnect:', err);
+        onConnectionStateChange?.('disconnected');
+      }
     });
 
-    this.connection.on('CommentDeleted', (commentId: string) => {
-      onCommentDeleted(commentId);
+    this.connection.onclose(() => {
+      this.joined = false;
+      onConnectionStateChange?.('disconnected');
     });
 
     try {
+      onConnectionStateChange?.('connecting');
       await this.connection.start();
-      console.log('SignalR connected to CommentHub.');
-      await this.connection.invoke('JoinEventGroup', this.eventId);
-      console.log(`Joined SignalR group for event: ${this.eventId}`);
+      await this.joinGroup();
+      onConnectionStateChange?.('connected');
     } catch (err) {
       console.error('Error starting SignalR connection:', err);
+      onConnectionStateChange?.('disconnected');
     }
   }
 
+  private async joinGroup() {
+    if (!this.connection || this.joined) return;
+    await this.connection.invoke('JoinEventGroup', this.eventId);
+    this.joined = true;
+  }
+
   public async stop() {
-    if (this.connection) {
-      try {
+    if (!this.connection) return;
+
+    try {
+      if (this.joined) {
         await this.connection.invoke('LeaveEventGroup', this.eventId);
-        await this.connection.stop();
-        console.log('SignalR disconnected.');
-      } catch (err) {
-        console.error('Error stopping SignalR connection:', err);
+        this.joined = false;
       }
+      await this.connection.stop();
+    } catch (err) {
+      console.error('Error stopping SignalR connection:', err);
+    } finally {
+      this.connection = null;
     }
   }
 }

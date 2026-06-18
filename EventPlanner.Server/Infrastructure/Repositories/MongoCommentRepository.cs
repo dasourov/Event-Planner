@@ -17,9 +17,7 @@ public class MongoCommentRepository : ICommentRepository
     }
 
     public async Task<Comment?> GetByIdAsync(string id)
-    {
-        return await _context.Comments.FirstOrDefaultAsync(c => c.Id == id);
-    }
+        => await _context.Comments.FirstOrDefaultAsync(c => c.Id == id);
 
     public async Task CreateAsync(Comment comment)
     {
@@ -46,12 +44,13 @@ public class MongoCommentRepository : ICommentRepository
     public async Task DeleteManyAsync(List<string> ids)
     {
         var comments = await _context.Comments.Where(c => ids.Contains(c.Id)).ToListAsync();
-        _context.Comments.RemoveRange(comments);
-        await _context.SaveChangesAsync();
+        if (comments.Any())
+        {
+            _context.Comments.RemoveRange(comments);
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task<List<Comment>> ListByEventAsync(string eventId)
-    {
-        return await _context.Comments.Where(c => c.EventId == eventId).ToListAsync();
-    }
+        => await _context.Comments.Where(c => c.EventId == eventId).ToListAsync();
 }

@@ -17,19 +17,13 @@ public class MongoCategoryRepository : ICategoryRepository
     }
 
     public async Task<Category?> GetByIdAsync(string id)
-    {
-        return await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
-    }
+        => await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
 
     public async Task<List<Category>> GetByIdsAsync(IEnumerable<string> ids)
-    {
-        return await _context.Categories.Where(c => ids.Contains(c.Id)).ToListAsync();
-    }
+        => await _context.Categories.Where(c => ids.Contains(c.Id)).ToListAsync();
 
     public async Task<Category?> GetByNameAsync(string name)
-    {
-        return await _context.Categories.FirstOrDefaultAsync(c => c.Name == name);
-    }
+        => await _context.Categories.FirstOrDefaultAsync(c => c.Name == name);
 
     public async Task CreateAsync(Category category)
     {
@@ -54,7 +48,5 @@ public class MongoCategoryRepository : ICategoryRepository
     }
 
     public async Task<List<Category>> ListAsync()
-    {
-        return await _context.Categories.ToListAsync();
-    }
+        => await _context.Categories.ToListAsync();
 }

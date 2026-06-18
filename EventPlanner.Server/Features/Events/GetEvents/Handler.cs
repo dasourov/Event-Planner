@@ -6,7 +6,7 @@ using EventPlanner.Server.Infrastructure.Repositories;
 
 namespace EventPlanner.Server.Features.Events.GetEvents;
 
-public class GetEventsHandler : IRequestHandler<GetEventsQuery, List<GetEventsResponse>>
+public class GetEventsHandler : IRequestHandler<GetEventsQuery, PaginatedEventsResponse>
 {
     private readonly IEventRepository _eventRepository;
     private readonly IUserRepository _userRepository;
@@ -26,23 +26,32 @@ public class GetEventsHandler : IRequestHandler<GetEventsQuery, List<GetEventsRe
         _bookingRepository = bookingRepository;
     }
 
-    public async Task<List<GetEventsResponse>> Handle(GetEventsQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedEventsResponse> Handle(GetEventsQuery request, CancellationToken cancellationToken)
     {
         var page = request.Page < 1 ? 1 : request.Page;
         var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
         pageSize = pageSize > 100 ? 100 : pageSize;
 
-        var events = await _eventRepository.ListAsync(
+        // Default to Published events unless filtering by organizer or asking for a specific status
+        var status = request.Status;
+        if (string.IsNullOrWhiteSpace(status) && string.IsNullOrWhiteSpace(request.OrganizerId))
+        {
+            status = "Published";
+        }
+
+        var (events, totalCount) = await _eventRepository.ListAsync(
             request.CategoryId,
             request.SearchTerm,
-            request.Status,
+            status,
+            request.OrganizerId,
             page,
             pageSize
         );
 
         var resultList = new List<GetEventsResponse>();
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
-        if (events.Count == 0) return resultList;
+        if (events.Count == 0) return new PaginatedEventsResponse(resultList, totalCount, page, pageSize, totalPages);
 
         var organizerIds = new HashSet<string>();
         var categoryIds = new HashSet<string>();
@@ -80,6 +89,7 @@ public class GetEventsHandler : IRequestHandler<GetEventsQuery, List<GetEventsRe
                 @event.Title,
                 @event.Description,
                 @event.Location,
+            @event.ImageUrl,
                 @event.Latitude,
                 @event.Longitude,
                 @event.Date,
@@ -93,6 +103,6 @@ public class GetEventsHandler : IRequestHandler<GetEventsQuery, List<GetEventsRe
             ));
         }
 
-        return resultList;
+        return new PaginatedEventsResponse(resultList, totalCount, page, pageSize, totalPages);
     }
 }

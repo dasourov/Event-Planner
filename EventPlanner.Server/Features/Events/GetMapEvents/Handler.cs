@@ -25,6 +25,7 @@ public class GetMapEventsHandler : IRequestHandler<GetMapEventsQuery, List<GetMa
                 e.Id,
                 e.Title,
                 e.Location,
+                e.ImageUrl,
                 e.Latitude,
                 e.Longitude,
                 e.Date

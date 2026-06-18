@@ -29,4 +29,13 @@ public class BasicApiTests : IClassFixture<WebApplicationFactory<Program>>
         var content = await response.Content.ReadAsStringAsync();
         Assert.Contains("Technology", content);
     }
+
+    [Fact]
+    public async Task GetEvents_ReturnsSuccess()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.GetAsync("/api/v1/events");
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.True(response.IsSuccessStatusCode, $"Failed with status {response.StatusCode} and content: {content}");
+    }
 }

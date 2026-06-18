@@ -17,14 +17,10 @@ public class MongoBookingRepository : IBookingRepository
     }
 
     public async Task<Booking?> GetByIdAsync(string id)
-    {
-        return await _context.Bookings.FirstOrDefaultAsync(b => b.Id == id);
-    }
+        => await _context.Bookings.FirstOrDefaultAsync(b => b.Id == id);
 
     public async Task<Booking?> GetByUserAndEventAsync(string userId, string eventId)
-    {
-        return await _context.Bookings.FirstOrDefaultAsync(b => b.UserId == userId && b.EventId == eventId);
-    }
+        => await _context.Bookings.FirstOrDefaultAsync(b => b.UserId == userId && b.EventId == eventId);
 
     public async Task CreateAsync(Booking booking)
     {
@@ -43,27 +39,33 @@ public class MongoBookingRepository : IBookingRepository
     }
 
     public async Task<List<Booking>> ListByUserAsync(string userId)
-    {
-        return await _context.Bookings.Where(b => b.UserId == userId).ToListAsync();
-    }
+        => await _context.Bookings.Where(b => b.UserId == userId).ToListAsync();
 
     public async Task<List<Booking>> ListByEventAsync(string eventId)
-    {
-        return await _context.Bookings.Where(b => b.EventId == eventId).ToListAsync();
-    }
+        => await _context.Bookings.Where(b => b.EventId == eventId).ToListAsync();
 
     public async Task<int> CountByEventAsync(string eventId)
-    {
-        return await _context.Bookings.CountAsync(b => b.EventId == eventId);
-    }
+        => await _context.Bookings.CountAsync(b => b.EventId == eventId);
 
     public async Task<Dictionary<string, int>> GetAttendeeCountsAsync(IEnumerable<string> eventIds)
     {
-        var counts = await _context.Bookings
+        var bookings = await _context.Bookings
             .Where(b => eventIds.Contains(b.EventId))
-            .GroupBy(b => b.EventId)
-            .Select(g => new { EventId = g.Key, Count = g.Count() })
             .ToListAsync();
-        return counts.ToDictionary(c => c.EventId, c => c.Count);
+
+        var dict = bookings
+            .GroupBy(b => b.EventId)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        // Ensure every requested eventId has a value (default 0)
+        foreach (var id in eventIds)
+        {
+            if (!dict.ContainsKey(id))
+            {
+                dict[id] = 0;
+            }
+        }
+
+        return dict;
     }
 }

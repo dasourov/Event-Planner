@@ -26,8 +26,12 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
-// Add SignalR
-builder.Services.AddSignalR();
+// Add SignalR with camelCase JSON payloads for the React client
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options =>
+    {
+        options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 
 // Bind Settings
 builder.Services.Configure<MongoDbSettings>(builder.Configuration.GetSection("MongoDb"));
@@ -50,7 +54,7 @@ builder.Services.AddDbContext<MongoDbContext>((sp, options) =>
         connectionString = "mongodb://localhost:27017";
     }
 
-    var dbName = configuration["MongoDb:DatabaseName"] ?? "gather";
+    var dbName = configuration["MongoDb:DatabaseName"] ?? "eventplanner";
 
     options.UseMongoDB(connectionString, dbName);
 });
@@ -61,6 +65,19 @@ builder.Services.AddScoped<IEventRepository, MongoEventRepository>();
 builder.Services.AddScoped<IBookingRepository, MongoBookingRepository>();
 builder.Services.AddScoped<ICommentRepository, MongoCommentRepository>();
 builder.Services.AddScoped<ICategoryRepository, MongoCategoryRepository>();
+
+// Register native MongoDB client for direct driver access (used by seeder)
+builder.Services.AddSingleton<IMongoClient>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var connectionString =
+        configuration.GetConnectionString("mongodb") ??
+        configuration.GetConnectionString("eventplanner") ??
+        Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") ??
+        configuration["MongoDb:ConnectionString"] ??
+        "mongodb://localhost:27017";
+    return new MongoClient(connectionString);
+});
 
 // Services
 builder.Services.AddSingleton<PasswordHasher>();
@@ -143,20 +160,28 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthentication();
+app.UseMiddleware<BannedUserMiddleware>();
 app.UseAuthorization();
+
+app.UseStaticFiles();
+app.UseFileServer();
 
 // Seed Database
 using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<MongoDbSeeder>();
+    var seedLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     try
     {
+        seedLogger.LogInformation("[Seeder] Starting database seed...");
         await seeder.SeedAsync();
+        seedLogger.LogInformation("[Seeder] Database seed completed successfully.");
     }
     catch (Exception ex)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while initializing the database");
+        seedLogger.LogError(ex, "[Seeder] An error occurred while initializing the database");
+        if (app.Environment.IsDevelopment())
+            throw; // Surface the error in dev so it's not silently swallowed
     }
 }
 
@@ -178,7 +203,12 @@ app.MapGet("/", () => Results.Ok(new
     BookingEndpoints = new[] { "POST /api/v1/bookings/{eventId}/join", "DELETE /api/v1/bookings/{eventId}/leave", "GET /api/v1/bookings/my" }
 }));
 
-app.UseFileServer();
+var webRoot = app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+var indexFile = Path.Combine(webRoot, "index.html");
+if (File.Exists(indexFile))
+{
+    app.MapFallbackToFile("index.html");
+}
 
 app.Run();
 

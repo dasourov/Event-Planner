@@ -42,7 +42,8 @@ public class RegisterHandler : IRequestHandler<RegisterCommand, RegisterResponse
             Username = request.Username,
             Email = request.Email,
             PasswordHash = _passwordHasher.HashPassword(request.Password),
-            Role = UserRole.User,
+            Role = request.IsOrganizer ? UserRole.Organizer : UserRole.User,
+            IsOrganizer = request.IsOrganizer,
             CreatedAt = DateTime.UtcNow
         };
 

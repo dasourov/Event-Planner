@@ -28,7 +28,7 @@ public class GetEventsHandler : IRequestHandler<GetEventsQuery, List<GetEventsRe
 
     public async Task<List<GetEventsResponse>> Handle(GetEventsQuery request, CancellationToken cancellationToken)
     {
-        var events = await _eventRepository.ListAsync();
+        var (events, _) = await _eventRepository.ListAsync();
         var resultList = new List<GetEventsResponse>();
 
         foreach (var @event in events)
