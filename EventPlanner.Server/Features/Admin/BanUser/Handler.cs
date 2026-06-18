@@ -1,9 +1,9 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using EventPlanner.Server.Domain.Enums;
 using EventPlanner.Server.Infrastructure.Repositories;
+using EventPlanner.Server.Common.Errors;
 
 namespace EventPlanner.Server.Features.Admin.BanUser;
 
@@ -21,13 +21,13 @@ public class BanUserHandler : IRequestHandler<BanUserCommand, BanUserResponse>
         var admin = await _userRepository.GetByIdAsync(request.AdminUserId);
         if (admin == null || admin.Role != UserRole.Admin)
         {
-            throw new Exception("Unauthorized. Only admins can ban users.");
+            throw new ForbiddenException("Only admins can ban users.");
         }
 
         var targetUser = await _userRepository.GetByIdAsync(request.TargetUserId);
         if (targetUser == null)
         {
-            throw new Exception("Target user not found");
+            throw new NotFoundException("Target user not found");
         }
 
         targetUser.IsBanned = true;

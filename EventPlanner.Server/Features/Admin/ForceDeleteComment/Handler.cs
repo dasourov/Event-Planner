@@ -1,4 +1,3 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -6,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using EventPlanner.Server.Domain.Enums;
 using EventPlanner.Server.Infrastructure.Repositories;
 using EventPlanner.Server.Infrastructure.SignalR;
+using EventPlanner.Server.Common.Errors;
 
 namespace EventPlanner.Server.Features.Admin.ForceDeleteComment;
 
@@ -31,13 +31,13 @@ public class ForceDeleteCommentHandler : IRequestHandler<ForceDeleteCommentComma
         var user = await _userRepository.GetByIdAsync(request.UserId);
         if (user == null || user.Role != UserRole.Admin)
         {
-            throw new Exception("Unauthorized. Only admins can force delete comments.");
+            throw new ForbiddenException("Only admins can force delete comments.");
         }
 
         var comment = await _commentRepository.GetByIdAsync(request.Id);
         if (comment == null)
         {
-            throw new Exception("Comment not found");
+            throw new NotFoundException("Comment not found.");
         }
 
         await _commentRepository.DeleteAsync(request.Id);
