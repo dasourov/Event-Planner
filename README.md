@@ -276,6 +276,6 @@ Runs the xUnit unit tests (handlers exercised against mocked repositories) and t
 Built as a group project for the Web Services course at TH Rosenheim.
 
 - **Didarul Alam Sourov** ([@dasourov](https://github.com/dasourov)) — project setup, backend architecture, auth, frontend integration
-- **Abhishek Bhardwaj** — bookings & comments, error handling, unit tests
-- **Wiem** — API documentation & exception handling
+- **Abhishek Bhardwaj** — Bookings & comments, use case diagram and unit testing
+- **Wiem** — API documentation, event category, systema architecture diagram & exception handling
 - **Jeel Sidpara** — event filtering, search & pagination
