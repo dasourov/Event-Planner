@@ -1674,31 +1674,24 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\install-admin\\.nuget\\packages\\": {},
-    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
+    "C:\\Users\\jeels\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\install-admin\\Desktop\\EventPlanner\\EventPlanner.Server\\EventPlanner.Server.csproj",
+      "projectUniqueName": "D:\\TH Rosenheim\\Semester 6\\web_service\\Event-Planner\\EventPlanner.Server\\EventPlanner.Server.csproj",
       "projectName": "EventPlanner.Server",
-      "projectPath": "C:\\Users\\install-admin\\Desktop\\EventPlanner\\EventPlanner.Server\\EventPlanner.Server.csproj",
-      "packagesPath": "C:\\Users\\install-admin\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\install-admin\\Desktop\\EventPlanner\\EventPlanner.Server\\obj\\",
+      "projectPath": "D:\\TH Rosenheim\\Semester 6\\web_service\\Event-Planner\\EventPlanner.Server\\EventPlanner.Server.csproj",
+      "packagesPath": "C:\\Users\\jeels\\.nuget\\packages\\",
+      "outputPath": "D:\\TH Rosenheim\\Semester 6\\web_service\\Event-Planner\\EventPlanner.Server\\obj\\",
       "projectStyle": "PackageReference",
-      "fallbackFolders": [
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-      ],
       "configFilePaths": [
-        "C:\\Users\\install-admin\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        "C:\\Users\\jeels\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
       ],
       "sources": {
-        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {

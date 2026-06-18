@@ -33,7 +33,8 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"))
 // MongoDB Client
 builder.Services.AddSingleton<IMongoClient>(sp =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("mongodb");
+    var connectionString = builder.Configuration.GetConnectionString("mongodb")
+        ?? builder.Configuration.GetConnectionString("eventplanner");
     if (string.IsNullOrEmpty(connectionString))
     {
         connectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING");

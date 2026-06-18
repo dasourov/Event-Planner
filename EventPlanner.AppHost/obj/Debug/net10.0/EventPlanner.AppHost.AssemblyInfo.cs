@@ -11,21 +11,21 @@ using System;
 using System.Reflection;
 
 [assembly: Microsoft.Extensions.Configuration.UserSecrets.UserSecretsIdAttribute("11cbbdb0-7b61-45d7-941e-d12f91b15f11")]
-[assembly: System.Reflection.AssemblyMetadata("dcpclipath", ("C:\\Users\\install-admin\\.nuget\\packages\\aspire.hosting.orchestration.win-x64\\13.1." +
-    "0\\tools\\dcp.exe"))]
-[assembly: System.Reflection.AssemblyMetadata("dcpextensionpaths", ("C:\\Users\\install-admin\\.nuget\\packages\\aspire.hosting.orchestration.win-x64\\13.1." +
-    "0\\tools\\ext\\"))]
-[assembly: System.Reflection.AssemblyMetadata("dcpbinpath", ("C:\\Users\\install-admin\\.nuget\\packages\\aspire.hosting.orchestration.win-x64\\13.1." +
-    "0\\tools\\ext\\bin\\"))]
-[assembly: System.Reflection.AssemblyMetadata("apphostprojectpath", "C:\\Users\\install-admin\\Desktop\\EventPlanner\\EventPlanner.AppHost")]
+[assembly: System.Reflection.AssemblyMetadata("dcpclipath", ("C:\\Users\\jeels\\.nuget\\packages\\aspire.hosting.orchestration.win-x64\\13.1.0\\tools\\" +
+    "dcp.exe"))]
+[assembly: System.Reflection.AssemblyMetadata("dcpextensionpaths", ("C:\\Users\\jeels\\.nuget\\packages\\aspire.hosting.orchestration.win-x64\\13.1.0\\tools\\" +
+    "ext\\"))]
+[assembly: System.Reflection.AssemblyMetadata("dcpbinpath", ("C:\\Users\\jeels\\.nuget\\packages\\aspire.hosting.orchestration.win-x64\\13.1.0\\tools\\" +
+    "ext\\bin\\"))]
+[assembly: System.Reflection.AssemblyMetadata("apphostprojectpath", "D:\\TH Rosenheim\\Semester 6\\web_service\\Event-Planner\\EventPlanner.AppHost")]
 [assembly: System.Reflection.AssemblyMetadata("apphostprojectname", "EventPlanner.AppHost.csproj")]
-[assembly: System.Reflection.AssemblyMetadata("aspiredashboardpath", ("C:\\Users\\install-admin\\.nuget\\packages\\aspire.dashboard.sdk.win-x64\\13.1.0\\tools\\" +
-    "Aspire.Dashboard.exe"))]
-[assembly: System.Reflection.AssemblyMetadataAttribute("apphostprojectbaseintermediateoutputpath", "C:\\Users\\install-admin\\Desktop\\EventPlanner\\EventPlanner.AppHost\\obj\\")]
+[assembly: System.Reflection.AssemblyMetadata("aspiredashboardpath", ("C:\\Users\\jeels\\.nuget\\packages\\aspire.dashboard.sdk.win-x64\\13.1.0\\tools\\Aspire.D" +
+    "ashboard.exe"))]
+[assembly: System.Reflection.AssemblyMetadataAttribute("apphostprojectbaseintermediateoutputpath", "D:\\TH Rosenheim\\Semester 6\\web_service\\Event-Planner\\EventPlanner.AppHost\\obj\\")]
 [assembly: System.Reflection.AssemblyCompanyAttribute("EventPlanner.AppHost")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+294af1640a78c15a9935687a73b98f55f39b4c37")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+dd30e09bcd5e128d87d766c147bb49c59ad0ad0e")]
 [assembly: System.Reflection.AssemblyProductAttribute("EventPlanner.AppHost")]
 [assembly: System.Reflection.AssemblyTitleAttribute("EventPlanner.AppHost")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
