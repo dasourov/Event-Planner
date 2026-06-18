@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
+using EventPlanner.Server.Common.Errors;
 using EventPlanner.Server.Infrastructure.Repositories;
 using EventPlanner.Server.Infrastructure.SignalR;
 
@@ -22,14 +23,14 @@ public class UpdateCommentHandler : IRequestHandler<UpdateCommentCommand, Update
     public async Task<UpdateCommentResponse> Handle(UpdateCommentCommand request, CancellationToken cancellationToken)
     {
         var comment = await _commentRepository.GetByIdAsync(request.CommentId);
-        if (comment == null)
+        if (comment == null || comment.EventId != request.EventId)
         {
-            throw new Exception("Comment not found");
+            throw new NotFoundException("Comment not found");
         }
 
         if (comment.UserId != request.UserId)
         {
-            throw new Exception("Not authorized to update this comment");
+            throw new ForbiddenException("Not authorized to update this comment");
         }
 
         comment.Content = request.Content;

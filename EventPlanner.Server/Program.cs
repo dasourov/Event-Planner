@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using MongoDB.Driver;
 using FluentValidation;
 using MediatR;
 using EventPlanner.Server.Common.Endpoints;
 using EventPlanner.Server.Common.Behaviors;
+using EventPlanner.Server.Common.Errors;
+using Scalar.AspNetCore;
 using EventPlanner.Server.Infrastructure.Persistence;
 using EventPlanner.Server.Infrastructure.Persistence.Seed;
 using EventPlanner.Server.Infrastructure.Repositories;
@@ -20,38 +23,42 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Add services to the container.
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
-// Add SignalR
-builder.Services.AddSignalR();
+// Add SignalR with camelCase JSON payloads for the React client
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options =>
+    {
+        options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 
 // Bind Settings
 builder.Services.Configure<MongoDbSettings>(builder.Configuration.GetSection("MongoDb"));
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
-
-// MongoDB Client
-builder.Services.AddSingleton<IMongoClient>(sp =>
+// Configure MongoDB Context (EF Core)
+builder.Services.AddDbContext<MongoDbContext>((sp, options) =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("mongodb")
-        ?? builder.Configuration.GetConnectionString("eventplanner");
-    if (string.IsNullOrEmpty(connectionString))
-    {
-        connectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING");
-    }
-    if (string.IsNullOrEmpty(connectionString) || connectionString == "MONGODB_CONNECTION_STRING_PLACEHOLDER")
-    {
-        connectionString = builder.Configuration["MongoDb:ConnectionString"];
-    }
-    if (string.IsNullOrEmpty(connectionString) || connectionString == "MONGODB_CONNECTION_STRING_PLACEHOLDER")
+    var configuration = sp.GetRequiredService<IConfiguration>();
+
+    var connectionString =
+        configuration.GetConnectionString("mongodb") ??
+        configuration.GetConnectionString("eventplanner") ??
+        Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") ??
+        configuration["MongoDb:ConnectionString"];
+
+    if (string.IsNullOrEmpty(connectionString) ||
+        connectionString == "MONGODB_CONNECTION_STRING_PLACEHOLDER" ||
+        connectionString == "your_mongodb_connection_string_here")
     {
         connectionString = "mongodb://localhost:27017";
     }
-    return new MongoClient(connectionString);
-});
 
-// MongoDbContext
-builder.Services.AddSingleton<MongoDbContext>();
+    var dbName = configuration["MongoDb:DatabaseName"] ?? "eventplanner";
+
+    options.UseMongoDB(connectionString, dbName);
+});
 
 // Repositories
 builder.Services.AddScoped<IUserRepository, MongoUserRepository>();
@@ -59,6 +66,19 @@ builder.Services.AddScoped<IEventRepository, MongoEventRepository>();
 builder.Services.AddScoped<IBookingRepository, MongoBookingRepository>();
 builder.Services.AddScoped<ICommentRepository, MongoCommentRepository>();
 builder.Services.AddScoped<ICategoryRepository, MongoCategoryRepository>();
+
+// Register native MongoDB client for direct driver access (used by seeder)
+builder.Services.AddSingleton<IMongoClient>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var connectionString =
+        configuration.GetConnectionString("mongodb") ??
+        configuration.GetConnectionString("eventplanner") ??
+        Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") ??
+        configuration["MongoDb:ConnectionString"] ??
+        "mongodb://localhost:27017";
+    return new MongoClient(connectionString);
+});
 
 // Services
 builder.Services.AddSingleton<PasswordHasher>();
@@ -138,23 +158,32 @@ app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.UseAuthentication();
+app.UseMiddleware<BannedUserMiddleware>();
 app.UseAuthorization();
+
+app.UseStaticFiles();
+app.UseFileServer();
 
 // Seed Database
 using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<MongoDbSeeder>();
+    var seedLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     try
     {
+        seedLogger.LogInformation("[Seeder] Starting database seed...");
         await seeder.SeedAsync();
+        seedLogger.LogInformation("[Seeder] Database seed completed successfully.");
     }
     catch (Exception ex)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while seeding the database");
+        seedLogger.LogError(ex, "[Seeder] An error occurred while initializing the database");
+        if (app.Environment.IsDevelopment())
+            throw; // Surface the error in dev so it's not silently swallowed
     }
 }
 
@@ -169,14 +198,19 @@ app.MapDefaultEndpoints();
 // Map Root Welcome and Info Endpoint
 app.MapGet("/", () => Results.Ok(new 
 {
-    Message = "EventPlanner API is running successfully!",
+    Message = "EventPlanner API v1 is running successfully!",
     DocumentationUrl = "/openapi/v1.json",
-    AuthEndpoints = new[] { "POST /api/auth/register", "POST /api/auth/login", "GET /api/auth/me" },
-    EventEndpoints = new[] { "GET /api/events", "POST /api/events", "GET /api/events/{id}", "PUT /api/events/{id}", "DELETE /api/events/{id}" },
-    BookingEndpoints = new[] { "POST /api/bookings/{eventId}/join", "DELETE /api/bookings/{eventId}/leave", "GET /api/bookings/my" }
+    AuthEndpoints = new[] { "POST /api/v1/auth/register", "POST /api/v1/auth/login", "GET /api/v1/auth/me" },
+    EventEndpoints = new[] { "GET /api/v1/events", "POST /api/v1/events", "GET /api/v1/events/{id}", "PUT /api/v1/events/{id}", "DELETE /api/v1/events/{id}" },
+    BookingEndpoints = new[] { "POST /api/v1/bookings/{eventId}/join", "DELETE /api/v1/bookings/{eventId}/leave", "GET /api/v1/bookings/my" }
 }));
 
-app.UseFileServer();
+var webRoot = app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+var indexFile = Path.Combine(webRoot, "index.html");
+if (File.Exists(indexFile))
+{
+    app.MapFallbackToFile("index.html");
+}
 
 app.Run();
 

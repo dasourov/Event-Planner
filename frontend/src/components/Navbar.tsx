@@ -13,7 +13,7 @@ interface NavbarProps {
   onLogout: () => void;
   onShowAuth: (tab: 'login' | 'register') => void;
   currentView: string;
-  onNavigate: (view: 'explore' | 'my-events' | 'admin') => void;
+  onNavigate: (view: 'home' | 'explore' | 'my-events' | 'admin') => void;
   searchTerm: string;
   onSearchChange: (val: string) => void;
   onCreateEventClick: () => void;
@@ -37,7 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Left: GatherPulse Branding & Links */}
         <div className="flex items-center gap-8">
           <div 
-            onClick={() => onNavigate('explore')}
+            onClick={() => onNavigate('home')}
             className="cursor-pointer select-none"
           >
             <h1 className="text-xl font-extrabold tracking-tight text-[#4648d4]">
@@ -46,15 +46,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           
           <nav className="hidden md:flex items-center gap-6">
-            <button
-              onClick={() => onNavigate('explore')}
-              className={`text-xs font-semibold tracking-wide transition-colors ${
-                currentView === 'explore' ? 'text-[#4648d4]' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Explore
-            </button>
-            {token && (
+            {token && user?.role !== 'Admin' && (
               <button
                 onClick={() => onNavigate('my-events')}
                 className={`text-xs font-semibold tracking-wide transition-colors ${
@@ -102,11 +94,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           )}
 
-          {/* Notifications bell */}
-          <button className="w-9 h-9 rounded-full bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100/80 flex items-center justify-center transition-colors">
-            <span className="material-symbols-outlined text-lg">notifications</span>
-          </button>
-
           {/* User profile dropdown avatar or Sign In and Login buttons */}
           {user ? (
             <div className="flex items-center gap-2">
@@ -142,12 +129,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Solid Create Button */}
-          <button
-            onClick={onCreateEventClick}
-            className="px-4 py-2 bg-[#4648d4] hover:bg-[#3738bd] text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all active:scale-95 flex items-center gap-1"
-          >
-            Create Event
-          </button>
+          {(!user || user.role === 'Organizer' || user.role === 'Admin') && (
+            <button
+              onClick={onCreateEventClick}
+              className="px-4 py-2 bg-[#4648d4] hover:bg-[#3738bd] text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all active:scale-95 flex items-center gap-1"
+            >
+              Create Event
+            </button>
+          )}
 
         </div>
       </div>

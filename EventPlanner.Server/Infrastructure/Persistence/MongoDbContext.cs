@@ -1,21 +1,34 @@
-using MongoDB.Driver;
-using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
+using MongoDB.EntityFrameworkCore.Extensions;
 using EventPlanner.Server.Domain.Entities;
 
 namespace EventPlanner.Server.Infrastructure.Persistence;
 
-public class MongoDbContext
+public class MongoDbContext : DbContext
 {
-    private readonly IMongoDatabase _database;
+    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<Event> Events { get; set; } = null!;
+    public DbSet<Booking> Bookings { get; set; } = null!;
+    public DbSet<Comment> Comments { get; set; } = null!;
+    public DbSet<Category> Categories { get; set; } = null!;
 
-    public MongoDbContext(IOptions<MongoDbSettings> settings, IMongoClient mongoClient)
+    public MongoDbContext(DbContextOptions<MongoDbContext> options)
+        : base(options)
     {
-        _database = mongoClient.GetDatabase(settings.Value.DatabaseName);
+        // Standalone MongoDB (single Docker node) does not support multi-document
+        // transactions. Disable AutoTransactionBehavior so SaveChanges works without
+        // a replica set. Each write is still atomic at the single-document level.
+        Database.AutoTransactionBehavior = AutoTransactionBehavior.Never;
     }
 
-    public IMongoCollection<User> Users => _database.GetCollection<User>("Users");
-    public IMongoCollection<Event> Events => _database.GetCollection<Event>("Events");
-    public IMongoCollection<Booking> Bookings => _database.GetCollection<Booking>("Bookings");
-    public IMongoCollection<Comment> Comments => _database.GetCollection<Comment>("Comments");
-    public IMongoCollection<Category> Categories => _database.GetCollection<Category>("Categories");
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<User>().ToCollection("Users");
+        modelBuilder.Entity<Event>().ToCollection("Events");
+        modelBuilder.Entity<Booking>().ToCollection("Bookings");
+        modelBuilder.Entity<Comment>().ToCollection("Comments");
+        modelBuilder.Entity<Category>().ToCollection("Categories");
+    }
 }

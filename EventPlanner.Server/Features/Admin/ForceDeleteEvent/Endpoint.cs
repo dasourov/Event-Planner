@@ -11,7 +11,7 @@ public class ForceDeleteEventEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapDelete("/api/admin/events/{id}", async (string id, ClaimsPrincipal user, ISender sender) =>
+        app.MapDelete("/admin/events/{id}", async (string id, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace EventPlanner.Server.Features.Events.GetEvents;
 
@@ -7,6 +8,7 @@ public record GetEventsResponse(
     string Title,
     string Description,
     string Location,
+    string? ImageUrl,
     double? Latitude,
     double? Longitude,
     DateTime Date,
@@ -17,4 +19,12 @@ public record GetEventsResponse(
     string Status,
     string OrganizerId,
     string OrganizerName
+);
+
+public record PaginatedEventsResponse(
+    List<GetEventsResponse> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages
 );

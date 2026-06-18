@@ -7,6 +7,7 @@ public record CreateEventCommand(
     string Title,
     string Description,
     string Location,
+    string? ImageUrl,
     double? Latitude,
     double? Longitude,
     DateTime Date,

@@ -11,7 +11,7 @@ public class CreateEventEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/events", async (CreateEventRequest req, ClaimsPrincipal user, ISender sender) =>
+        app.MapPost("/events", async (CreateEventRequest req, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
@@ -23,6 +23,7 @@ public class CreateEventEndpoint : IEndpoint
                 req.Title,
                 req.Description,
                 req.Location,
+                req.ImageUrl,
                 req.Latitude,
                 req.Longitude,
                 req.Date,
@@ -44,6 +45,7 @@ public record CreateEventRequest(
     string Title,
     string Description,
     string Location,
+    string? ImageUrl,
     double? Latitude,
     double? Longitude,
     System.DateTime Date,

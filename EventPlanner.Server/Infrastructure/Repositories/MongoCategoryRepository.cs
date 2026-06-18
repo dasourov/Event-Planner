@@ -1,6 +1,7 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using MongoDB.Driver;
+using Microsoft.EntityFrameworkCore;
 using EventPlanner.Server.Domain.Entities;
 using EventPlanner.Server.Infrastructure.Persistence;
 
@@ -16,32 +17,36 @@ public class MongoCategoryRepository : ICategoryRepository
     }
 
     public async Task<Category?> GetByIdAsync(string id)
-    {
-        return await _context.Categories.Find(c => c.Id == id).FirstOrDefaultAsync();
-    }
+        => await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
+
+    public async Task<List<Category>> GetByIdsAsync(IEnumerable<string> ids)
+        => await _context.Categories.Where(c => ids.Contains(c.Id)).ToListAsync();
 
     public async Task<Category?> GetByNameAsync(string name)
-    {
-        return await _context.Categories.Find(c => c.Name == name).FirstOrDefaultAsync();
-    }
+        => await _context.Categories.FirstOrDefaultAsync(c => c.Name == name);
 
     public async Task CreateAsync(Category category)
     {
-        await _context.Categories.InsertOneAsync(category);
+        await _context.Categories.AddAsync(category);
+        await _context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(Category category)
     {
-        await _context.Categories.ReplaceOneAsync(c => c.Id == category.Id, category);
+        _context.Categories.Update(category);
+        await _context.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(string id)
     {
-        await _context.Categories.DeleteOneAsync(c => c.Id == id);
+        var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
+        if (category != null)
+        {
+            _context.Categories.Remove(category);
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task<List<Category>> ListAsync()
-    {
-        return await _context.Categories.Find(_ => true).ToListAsync();
-    }
+        => await _context.Categories.ToListAsync();
 }

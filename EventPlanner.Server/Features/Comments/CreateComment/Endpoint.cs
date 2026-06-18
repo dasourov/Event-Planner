@@ -11,7 +11,7 @@ public class CreateCommentEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/events/{eventId}/comments", async (string eventId, CreateCommentRequest req, ClaimsPrincipal user, ISender sender) =>
+        app.MapPost("/events/{eventId}/comments", async (string eventId, CreateCommentRequest req, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
@@ -19,7 +19,7 @@ public class CreateCommentEndpoint : IEndpoint
                 return Results.Unauthorized();
             }
 
-            var response = await sender.Send(new CreateCommentCommand(eventId, userId, req.Content));
+            var response = await sender.Send(new CreateCommentCommand(eventId, userId, req.Content, req.ParentCommentId));
             return Results.Ok(response);
         })
         .WithName("CreateComment")
@@ -28,4 +28,4 @@ public class CreateCommentEndpoint : IEndpoint
     }
 }
 
-public record CreateCommentRequest(string Content);
+public record CreateCommentRequest(string Content, string? ParentCommentId = null);

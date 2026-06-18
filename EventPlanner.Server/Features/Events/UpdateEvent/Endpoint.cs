@@ -11,7 +11,7 @@ public class UpdateEventEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPut("/api/events/{id}", async (string id, UpdateEventRequest req, ClaimsPrincipal user, ISender sender) =>
+        app.MapPut("/events/{id}", async (string id, UpdateEventRequest req, ClaimsPrincipal user, ISender sender) =>
         {
             var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
@@ -24,6 +24,7 @@ public class UpdateEventEndpoint : IEndpoint
                 req.Title,
                 req.Description,
                 req.Location,
+                req.ImageUrl,
                 req.Latitude,
                 req.Longitude,
                 req.Date,
@@ -45,6 +46,7 @@ public record UpdateEventRequest(
     string Title,
     string Description,
     string Location,
+    string? ImageUrl,
     double? Latitude,
     double? Longitude,
     System.DateTime Date,

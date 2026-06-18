@@ -22,11 +22,20 @@ public class BasicApiTests : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
 
         // Act
-        var response = await client.GetAsync("/api/categories");
+        var response = await client.GetAsync("/api/v1/categories");
 
         // Assert
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
         Assert.Contains("Technology", content);
+    }
+
+    [Fact]
+    public async Task GetEvents_ReturnsSuccess()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.GetAsync("/api/v1/events");
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.True(response.IsSuccessStatusCode, $"Failed with status {response.StatusCode} and content: {content}");
     }
 }

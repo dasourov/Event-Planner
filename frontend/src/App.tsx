@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from './api';
-import { CommentHubConnection } from './CommentHub';
+import { CommentHubConnection, type CommentHubConnectionState } from './CommentHub';
 
 // Import our professional components
 import { Navbar } from './components/Navbar';
@@ -33,6 +33,7 @@ interface EventItem {
   organizerId: string;
   organizerName: string;
   createdAt?: string;
+  imageUrl?: string;
 }
 
 interface Booking {
@@ -57,8 +58,52 @@ interface Comment {
   userId: string;
   username: string;
   content: string;
+  parentCommentId?: string | null;
   createdAt: string;
 }
+
+// The API returns comments as a nested tree (each comment carries its replies).
+// We keep them flat in state and rebuild the tree at render time, so SignalR
+// events (which arrive as single comments) can be applied uniformly.
+const flattenComments = (tree: any[]): Comment[] =>
+  tree.flatMap((c) => [
+    {
+      id: c.id,
+      eventId: c.eventId,
+      userId: c.userId,
+      username: c.username,
+      content: c.content,
+      parentCommentId: c.parentCommentId ?? null,
+      createdAt: c.createdAt,
+    },
+    ...flattenComments(c.replies || []),
+  ]);
+
+const normalizeComment = (raw: any): Comment => ({
+  id: raw.id,
+  eventId: raw.eventId,
+  userId: raw.userId,
+  username: raw.username,
+  content: raw.content,
+  parentCommentId: raw.parentCommentId ?? null,
+  createdAt: raw.createdAt,
+});
+
+// A comment plus every reply beneath it (used when a deletion cascades)
+const collectCommentWithDescendants = (rootId: string, all: Comment[]): Set<string> => {
+  const ids = new Set([rootId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const c of all) {
+      if (c.parentCommentId && ids.has(c.parentCommentId) && !ids.has(c.id)) {
+        ids.add(c.id);
+        changed = true;
+      }
+    }
+  }
+  return ids;
+};
 
 interface UserProfile {
   id: string;
@@ -77,129 +122,103 @@ interface AdminUser {
 }
 
 // 6 High-Fidelity Dummy Events from user picture
-const DUMMY_EVENTS: EventItem[] = [
-  {
-    id: "dummy-1",
-    title: "Future Tech Summit 2024",
-    description: "Join industry leaders, software engineers, and researchers to discuss future trends in Artificial Intelligence, quantum computing, and decentralized web architectures.",
-    location: "San Francisco, CA",
-    latitude: 37.7749,
-    longitude: -122.4194,
-    date: "2026-10-24T10:00:00",
-    categoryId: "dummy-cat-tech",
-    categoryName: "Technology",
-    maxAttendees: 200,
-    attendeeCount: 124,
-    status: "Published",
-    organizerId: "dummy-org",
-    organizerName: "Tech Association"
-  },
-  {
-    id: "dummy-2",
-    title: "Mindful Morning Retreat",
-    description: "Relax, renew, and find peace. A morning filled with guided meditation, gentle yoga flow, healthy juices, and nature walks in Austin.",
-    location: "Austin, TX",
-    latitude: 30.2672,
-    longitude: -97.7431,
-    date: "2026-10-28T08:00:00",
-    categoryId: "dummy-cat-wellness",
-    categoryName: "Wellness",
-    maxAttendees: 50,
-    attendeeCount: 15,
-    status: "Published",
-    organizerId: "dummy-org",
-    organizerName: "Wellness Club"
-  },
-  {
-    id: "dummy-3",
-    title: "Urban Canvas Workshop",
-    description: "Unleash your creativity. Bring your canvas to life under the guidance of expert street artists. All painting materials provided.",
-    location: "New York, NY",
-    latitude: 40.7128,
-    longitude: -74.0060,
-    date: "2026-11-02T13:00:00",
-    categoryId: "dummy-cat-arts",
-    categoryName: "Art",
-    maxAttendees: 30,
-    attendeeCount: 22,
-    status: "Published",
-    organizerId: "dummy-org",
-    organizerName: "Canvas Guild"
-  },
-  {
-    id: "dummy-4",
-    title: "Founders & Funders Night",
-    description: "Connect with startup founders, venture capitalists, and angel investors in Chicago. Pitch your ideas and discover new partnerships.",
-    location: "Chicago, IL",
-    latitude: 41.8781,
-    longitude: -87.6298,
-    date: "2026-11-05T18:30:00",
-    categoryId: "dummy-cat-net",
-    categoryName: "Networking",
-    maxAttendees: 120,
-    attendeeCount: 78,
-    status: "Published",
-    organizerId: "dummy-org",
-    organizerName: "Founders Network"
-  },
-  {
-    id: "dummy-5",
-    title: "Product Design Masterclass",
-    description: "Learn the secrets of designing products that users love. An intensive hands-on workshop covering UI/UX research, wireframing, and user testing.",
-    location: "Seattle, WA",
-    latitude: 47.6062,
-    longitude: -122.3321,
-    date: "2026-11-12T09:00:00",
-    categoryId: "dummy-cat-work",
-    categoryName: "Workshop",
-    maxAttendees: 40,
-    attendeeCount: 18,
-    status: "Published",
-    organizerId: "dummy-org",
-    organizerName: "Design Academy"
-  },
-  {
-    id: "dummy-6",
-    title: "Community Arts Festival",
-    description: "Celebrate local art, music, food, and culture. A free street festival for families featuring live performances, food trucks, and craft vendors.",
-    location: "Portland, OR",
-    latitude: 45.5152,
-    longitude: -122.6784,
-    date: "2026-11-15T11:00:00",
-    categoryId: "dummy-cat-arts",
-    categoryName: "Art",
-    maxAttendees: 1000,
-    attendeeCount: 412,
-    status: "Published",
-    organizerId: "dummy-org",
-    organizerName: "Portland Arts Commission"
-  }
-];
+const DUMMY_EVENTS: EventItem[] = [];
 
-// Fallback dummy categories matching standard filter tags
+// Fallback dummy categories used only when the API is unavailable
 const DUMMY_CATEGORIES: Category[] = [
   { id: "dummy-cat-tech", name: "Technology", description: "Tech conferences and workshops" },
+  { id: "dummy-cat-sports", name: "Sports", description: "Athletic events and outdoor activities" },
+  { id: "dummy-cat-music", name: "Music", description: "Concerts and musical performances" },
   { id: "dummy-cat-arts", name: "Art", description: "Arts and creative festivals" },
-  { id: "dummy-cat-wellness", name: "Wellness", description: "Health and wellness gatherings" },
   { id: "dummy-cat-net", name: "Networking", description: "Professional networking events" },
-  { id: "dummy-cat-work", name: "Workshop", description: "Intensive learning masterclasses" }
+  { id: "dummy-cat-wellness", name: "Wellness", description: "Health and wellness gatherings" },
+  { id: "dummy-cat-work", name: "Workshop", description: "Intensive learning masterclasses" },
+  { id: "dummy-cat-food", name: "Food", description: "Culinary experiences and tastings" }
 ];
 
-// Fallback dummy comments for logged-out details preview
-const MOCK_COMMENTS: Record<string, Comment[]> = {
-  "dummy-1": [
-    { id: "mc-1", eventId: "dummy-1", userId: "u-1", username: "Alice", content: "Can't wait for the AI keynotes!", createdAt: new Date(Date.now() - 3600000).toISOString() },
-    { id: "mc-2", eventId: "dummy-1", userId: "u-2", username: "Bob", content: "Is there a parking space near the venue?", createdAt: new Date(Date.now() - 1800000).toISOString() }
-  ],
-  "dummy-2": [
-    { id: "mc-3", eventId: "dummy-2", userId: "u-3", username: "Sarah", content: "Should we bring our own yoga mats?", createdAt: new Date().toISOString() }
-  ]
+const resolveCategoryIdForApi = (selectedId: string, availableCategories: Category[]): string | undefined => {
+  if (!selectedId) return undefined;
+
+  if (!selectedId.startsWith('dummy-cat-')) {
+    return selectedId;
+  }
+
+  const dummy = DUMMY_CATEGORIES.find((c) => c.id === selectedId);
+  if (!dummy) return undefined;
+
+  const match = availableCategories.find(
+    (c) => !c.id.startsWith('dummy-cat-') && c.name.toLowerCase() === dummy.name.toLowerCase()
+  );
+
+  return match?.id;
 };
+
+// Fallback dummy comments for logged-out details preview
+const MOCK_COMMENTS: Record<string, Comment[]> = {};
 
 export default function App() {
   // Navigation & View State
-  const [currentView, setCurrentView] = useState<'explore' | 'detail' | 'create' | 'edit' | 'my-events' | 'admin'>('explore');
+  const [currentView, setCurrentView] = useState<'home' | 'explore' | 'detail' | 'create' | 'edit' | 'my-events' | 'admin'>('home');
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+  // Helper to parse current path and set state accordingly
+  const parseUrl = () => {
+    const path = window.location.pathname;
+    const savedUser = localStorage.getItem('user');
+    const currentUser: UserProfile | null = savedUser ? JSON.parse(savedUser) : null;
+
+    if (path === '/' || path === '/explore') {
+      setCurrentView('explore');
+      setSelectedEventId(null);
+    } else if (path === '/my-events') {
+      setCurrentView('my-events');
+      setSelectedEventId(null);
+    } else if (path === '/admin') {
+      if (currentUser && currentUser.role === 'Admin') {
+        setCurrentView('admin');
+        setSelectedEventId(null);
+      } else {
+        window.history.replaceState({}, '', '/explore');
+        setCurrentView('explore');
+        setSelectedEventId(null);
+      }
+    } else if (path === '/events/create') {
+      if (currentUser && (currentUser.role === 'Organizer' || currentUser.role === 'Admin')) {
+        setCurrentView('create');
+        setSelectedEventId(null);
+      } else {
+        window.history.replaceState({}, '', '/explore');
+        setCurrentView('explore');
+        setSelectedEventId(null);
+      }
+    } else if (path.startsWith('/events/') && path.endsWith('/edit')) {
+      const id = path.split('/')[2];
+      if (currentUser && (currentUser.role === 'Organizer' || currentUser.role === 'Admin')) {
+        setCurrentView('edit');
+        setSelectedEventId(id);
+      } else {
+        window.history.replaceState({}, '', '/explore');
+        setCurrentView('explore');
+        setSelectedEventId(null);
+      }
+    } else if (path.startsWith('/events/')) {
+      const id = path.split('/')[2];
+      setCurrentView('detail');
+      setSelectedEventId(id);
+    } else {
+      // Fallback
+      setCurrentView('explore');
+      setSelectedEventId(null);
+    }
+  };
+
+  const navigate = (path: string) => {
+    window.history.pushState({}, '', path);
+    parseUrl();
+    if (path === '/' || path === '/explore') {
+      fetchEvents();
+    }
+  };
 
   // Authentication State
   const [user, setUser] = useState<UserProfile | null>(() => {
@@ -217,28 +236,32 @@ export default function App() {
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
+  const [registerIsOrganizer, setRegisterIsOrganizer] = useState(false);
 
   // Domain States
   const [categories, setCategories] = useState<Category[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
   const [myHostedEvents, setMyHostedEvents] = useState<EventItem[]>([]);
-  const [likedEvents, setLikedEvents] = useState<Record<string, boolean>>({});
 
   // Event Detail States
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [eventAttendees, setEventAttendees] = useState<Attendee[]>([]);
   const [eventComments, setEventComments] = useState<Comment[]>([]);
+  const [commentHubState, setCommentHubState] = useState<CommentHubConnectionState>('disconnected');
+  const [isPostingComment, setIsPostingComment] = useState(false);
   const [newCommentText, setNewCommentText] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   // Event Creation/Editing Form State
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formLocation, setFormLocation] = useState('');
-  const [formLatitude, setFormLatitude] = useState('');
-  const [formLongitude, setFormLongitude] = useState('');
+  const [formImageUrl, setFormImageUrl] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [formDate, setFormDate] = useState('');
   const [formCategoryId, setFormCategoryId] = useState('');
   const [formMaxAttendees, setFormMaxAttendees] = useState('');
@@ -254,8 +277,11 @@ export default function App() {
 
   // Search, Filter & Pagination
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [activePage, setActivePage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalCount, setTotalCount] = useState<number>(0);
 
   // Global Notification/Feedback States
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -280,14 +306,89 @@ export default function App() {
     }
   }, [successMsg]);
 
+  // Debounce search term — wait 400ms after user stops typing before triggering API call
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Initial Boot setup
   useEffect(() => {
+    parseUrl();
+    const handlePopState = () => {
+      parseUrl();
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    const handleAccountBanned = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      setToken(null);
+      setUser(null);
+      setErrorMsg(detail || 'Your account has been banned.');
+      navigate('/explore');
+    };
+    window.addEventListener('account-banned', handleAccountBanned);
+
     fetchCategories();
     fetchEvents();
     if (token) {
       verifyCurrentUser();
     }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('account-banned', handleAccountBanned);
+    };
   }, []);
+
+  // Periodically re-check account status so bans take effect without waiting for logout
+  useEffect(() => {
+    if (!token) return;
+    const interval = setInterval(() => {
+      verifyCurrentUser();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  // Fetch event details on deep links or URL refreshes
+  useEffect(() => {
+    if ((currentView === 'detail' || currentView === 'edit') && selectedEventId) {
+      if (!selectedEvent || selectedEvent.id !== selectedEventId) {
+        loadEventDetails(selectedEventId);
+      }
+    }
+  }, [currentView, selectedEventId]);
+
+  // Pre-populate form when entering edit view directly or when selectedEvent loads
+  useEffect(() => {
+    if (currentView === 'edit' && selectedEvent && selectedEvent.id === selectedEventId) {
+      setFormTitle(selectedEvent.title);
+      setFormDescription(selectedEvent.description);
+      setFormLocation(selectedEvent.location);
+      setFormImageUrl(selectedEvent.imageUrl || '');
+      try {
+        const dateStr = new Date(selectedEvent.date).toISOString().slice(0, 16);
+        setFormDate(dateStr);
+      } catch (e) {
+        setFormDate('');
+      }
+      setFormCategoryId(selectedEvent.categoryId);
+      setFormMaxAttendees(selectedEvent.maxAttendees ? selectedEvent.maxAttendees.toString() : '');
+    }
+  }, [currentView, selectedEvent, selectedEventId]);
+
+  // Reset form when entering create view
+  useEffect(() => {
+    if (currentView === 'create') {
+      setFormTitle('');
+      setFormDescription('');
+      setFormLocation('');
+      setFormImageUrl('');
+      setFormDate('');
+      setFormCategoryId(categories[0]?.id || '');
+      setFormMaxAttendees('');
+    }
+  }, [currentView, categories]);
 
   // Sync token state changes with API and Fetch user properties
   const verifyCurrentUser = async () => {
@@ -296,38 +397,53 @@ export default function App() {
       const profile: UserProfile = res.data;
       setUser(profile);
       localStorage.setItem('user', JSON.stringify(profile));
+    } else if (res.banned) {
+      setToken(null);
+      setUser(null);
+      setErrorMsg(res.error || 'Your account has been banned.');
+      navigate('/explore');
     } else {
       handleLogout();
     }
   };
 
-  // Fetch Categories and merge with DUMMY_CATEGORIES to match custom layout
+  // Fetch Categories from API (fallback to dummy list if offline)
   const fetchCategories = async () => {
     const res = await api.getCategories();
-    if (res.success && res.data) {
-      const dbCategories = res.data;
-      const combined = [
-        ...dbCategories,
-        ...DUMMY_CATEGORIES.filter(dc => !dbCategories.some(dbc => dbc.name.toLowerCase() === dc.name.toLowerCase()))
-      ];
-      setCategories(combined);
+    if (res.success && res.data && res.data.length > 0) {
+      setCategories(res.data);
     } else {
       setCategories(DUMMY_CATEGORIES);
     }
   };
 
-  // Fetch Events from API and combine with DUMMY_EVENTS
+  // Fetch Events from API
   const fetchEvents = async () => {
     setLoading(true);
+    const categoryIdForApi = resolveCategoryIdForApi(selectedCategoryId, categories);
     const res = await api.getEvents(
-      selectedCategoryId && !selectedCategoryId.startsWith('dummy') ? selectedCategoryId : undefined,
-      searchTerm || undefined
+      categoryIdForApi,
+      debouncedSearchTerm || undefined,
+      undefined,
+      activePage,
+      6
     );
     setLoading(false);
     
     let dbEvents: EventItem[] = [];
+    let apiTotalPages = 1;
+    let apiTotalCount = 0;
+
     if (res.success && res.data) {
-      dbEvents = res.data;
+      if (Array.isArray(res.data)) {
+        dbEvents = res.data;
+        apiTotalCount = res.data.length;
+        apiTotalPages = 1;
+      } else {
+        dbEvents = res.data.items || [];
+        apiTotalCount = res.data.totalCount || 0;
+        apiTotalPages = res.data.totalPages || 1;
+      }
     }
 
     // Filter out dummy events that have been converted to real DB events (matching title)
@@ -336,47 +452,64 @@ export default function App() {
     );
 
     // Apply filters locally for dummy events
-    let combined = [...dbEvents, ...filteredDummies];
+    let dummyFiltered = [...filteredDummies];
     
     if (selectedCategoryId) {
-      combined = combined.filter(e => {
+      dummyFiltered = dummyFiltered.filter(e => {
         if (selectedCategoryId.startsWith('dummy-cat-')) {
           const matchCat = DUMMY_CATEGORIES.find(c => c.id === selectedCategoryId);
           return e.categoryName.toLowerCase() === matchCat?.name.toLowerCase();
         }
-        return e.categoryId === selectedCategoryId;
+        return false;
       });
     }
 
-    if (searchTerm) {
-      const query = searchTerm.toLowerCase();
-      combined = combined.filter(e => 
+    if (debouncedSearchTerm) {
+      const query = debouncedSearchTerm.toLowerCase();
+      dummyFiltered = dummyFiltered.filter(e => 
         e.title.toLowerCase().includes(query) || 
         e.description.toLowerCase().includes(query)
       );
     }
 
-    setEvents(combined);
+    if (res.success) {
+      setEvents(dbEvents);
+      setTotalPages(apiTotalPages);
+      setTotalCount(apiTotalCount);
+    } else {
+      // Fallback: paginate dummy events locally
+      const pageSize = 6;
+      const totalDummyCount = dummyFiltered.length;
+      const totalDummyPages = Math.max(1, Math.ceil(totalDummyCount / pageSize));
+      const pageIndex = Math.min(activePage, totalDummyPages) - 1;
+      const paginatedDummies = dummyFiltered.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+      
+      setEvents(paginatedDummies);
+      setTotalPages(totalDummyPages);
+      setTotalCount(totalDummyCount);
+    }
   };
 
-  // Refresh events list when category or search changes
+  // Refresh events list when category, debounced search, or page changes
   useEffect(() => {
     fetchEvents();
-  }, [selectedCategoryId, searchTerm]);
+  }, [selectedCategoryId, debouncedSearchTerm, activePage, categories]);
 
   // Fetch My dashboard information
   const fetchMyDashboard = async () => {
-    if (!token) return;
+    if (!token || !user) return;
     setLoading(true);
     const bookingsRes = await api.getMyBookings();
-    const eventsRes = await api.getEvents(); // To filter hosted events locally
+    const eventsRes = await api.getEvents(undefined, undefined, undefined, 1, 100, user.id);
     setLoading(false);
 
     if (bookingsRes.success && bookingsRes.data) {
       setMyBookings(bookingsRes.data);
     }
-    if (eventsRes.success && eventsRes.data && user) {
-      const hosted = eventsRes.data.filter((e: EventItem) => e.organizerId === user.id);
+    if (eventsRes.success && eventsRes.data) {
+      const hosted = Array.isArray(eventsRes.data)
+        ? eventsRes.data
+        : (eventsRes.data.items || []);
       setMyHostedEvents(hosted);
     }
   };
@@ -385,7 +518,7 @@ export default function App() {
     if (currentView === 'my-events') {
       fetchMyDashboard();
     }
-  }, [currentView, token]);
+  }, [currentView, token, user]);
 
   // Fetch Admin page details
   const fetchAdminData = async () => {
@@ -411,19 +544,25 @@ export default function App() {
   // Real-time SignalR Comment connection configuration
   useEffect(() => {
     if (currentView === 'detail' && selectedEventId && !selectedEventId.startsWith('dummy')) {
-      // Connect to comments hub
       const conn = new CommentHubConnection(selectedEventId);
-      
-      const onCreated = (newComment: any) => {
+
+      const upsertComment = (raw: any) => {
+        const comment = normalizeComment(raw);
         setEventComments((prev) => {
-          if (prev.some((c) => c.id === newComment.id)) return prev;
-          return [...prev, newComment];
+          if (prev.some((c) => c.id === comment.id)) {
+            return prev.map((c) => (c.id === comment.id ? { ...c, ...comment } : c));
+          }
+          return [...prev, comment];
         });
+      };
+
+      const onCreated = (newComment: any) => {
+        upsertComment(newComment);
       };
 
       const onUpdated = (updatedComment: any) => {
         setEventComments((prev) =>
-          prev.map((c) => (c.id === updatedComment.id ? updatedComment : c))
+          prev.map((c) => (c.id === updatedComment.id ? { ...c, ...updatedComment } : c))
         );
       };
 
@@ -431,16 +570,19 @@ export default function App() {
         setEventComments((prev) => prev.filter((c) => c.id !== commentId));
       };
 
-      conn.start(onCreated, onUpdated, onDeleted);
+      conn.start(onCreated, onUpdated, onDeleted, setCommentHubState);
       signalRConnRef.current = conn;
 
       return () => {
+        setCommentHubState('disconnected');
         if (signalRConnRef.current) {
           signalRConnRef.current.stop();
           signalRConnRef.current = null;
         }
       };
     }
+
+    setCommentHubState('disconnected');
   }, [currentView, selectedEventId]);
 
   // Fetch Event Details page parameters
@@ -453,7 +595,10 @@ export default function App() {
         const listRes = await api.getEvents();
         setLoading(false);
         if (listRes.success && listRes.data) {
-          const match = listRes.data.find((e: EventItem) => e.title.toLowerCase() === dummy.title.toLowerCase());
+          const allEvents = Array.isArray(listRes.data)
+            ? listRes.data
+            : (listRes.data.items || []);
+          const match = allEvents.find((e: EventItem) => e.title.toLowerCase() === dummy.title.toLowerCase());
           if (match) {
             // Already created in database, load it!
             id = match.id;
@@ -500,7 +645,18 @@ export default function App() {
           { userId: "mock-att-2", username: "Bob", email: "bob@mock.com" }
         ]);
         setEventComments(MOCK_COMMENTS[dummy.id] || []);
-        setCurrentView('detail');
+        const currentPath = window.location.pathname;
+        if (currentView === 'edit' || currentPath.endsWith('/edit')) {
+          if (currentPath !== `/events/${id}/edit`) {
+            window.history.pushState({}, '', `/events/${id}/edit`);
+          }
+          setCurrentView('edit');
+        } else {
+          if (currentPath !== `/events/${id}`) {
+            window.history.pushState({}, '', `/events/${id}`);
+          }
+          setCurrentView('detail');
+        }
       }
       return;
     }
@@ -515,7 +671,18 @@ export default function App() {
     if (evRes.success && evRes.data) {
       setSelectedEvent(evRes.data);
       setSelectedEventId(id);
-      setCurrentView('detail');
+      const currentPath = window.location.pathname;
+      if (currentView === 'edit' || currentPath.endsWith('/edit')) {
+        if (currentPath !== `/events/${id}/edit`) {
+          window.history.pushState({}, '', `/events/${id}/edit`);
+        }
+        setCurrentView('edit');
+      } else {
+        if (currentPath !== `/events/${id}`) {
+          window.history.pushState({}, '', `/events/${id}`);
+        }
+        setCurrentView('detail');
+      }
     } else {
       setErrorMsg(evRes.error || 'Failed to retrieve event information.');
       return;
@@ -525,7 +692,7 @@ export default function App() {
       setEventAttendees(attendeesRes.data);
     }
     if (commentsRes.success && commentsRes.data) {
-      setEventComments(commentsRes.data);
+      setEventComments(flattenComments(commentsRes.data));
     }
   };
 
@@ -541,6 +708,7 @@ export default function App() {
       username: registerUsername,
       email: registerEmail,
       password: registerPassword,
+      isOrganizer: registerIsOrganizer
     });
     setLoading(false);
 
@@ -552,6 +720,7 @@ export default function App() {
       setRegisterEmail('');
       setRegisterPassword('');
       setRegisterConfirmPassword('');
+      setRegisterIsOrganizer(false);
     } else {
       setErrorMsg(res.error || 'Registration failed.');
     }
@@ -603,7 +772,7 @@ export default function App() {
     setToken(null);
     setUser(null);
     setSuccessMsg('Logged out successfully.');
-    setCurrentView('explore');
+    navigate('/explore');
   };
 
   // Event: Join Event
@@ -646,6 +815,21 @@ export default function App() {
     }
   };
 
+  // Handle image upload
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    setIsUploadingImage(true);
+    const res = await api.uploadImage(file);
+    setIsUploadingImage(false);
+    if (res.success && res.data) {
+      setFormImageUrl(res.data.data.url);
+      setSuccessMsg('Image uploaded successfully!');
+    } else {
+      setErrorMsg(res.error || 'Failed to upload image.');
+    }
+  };
+
   // Event: Save (Create or Edit)
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -658,8 +842,7 @@ export default function App() {
       title: formTitle,
       description: formDescription,
       location: formLocation,
-      latitude: formLatitude ? parseFloat(formLatitude) : null,
-      longitude: formLongitude ? parseFloat(formLongitude) : null,
+      imageUrl: formImageUrl || null,
       date: new Date(formDate).toISOString(),
       categoryId: formCategoryId,
       maxAttendees: formMaxAttendees ? parseInt(formMaxAttendees) : null,
@@ -671,17 +854,19 @@ export default function App() {
       res = await api.updateEvent(selectedEventId, payload);
     } else {
       res = await api.createEvent(payload);
+      if (res.success && res.data?.id) {
+        await api.publishEvent(res.data.id);
+      }
     }
     setLoading(false);
 
     if (res.success) {
-      setSuccessMsg(currentView === 'edit' ? 'Event updated!' : 'Event created as a draft!');
+      setSuccessMsg(currentView === 'edit' ? 'Event updated!' : 'Event published successfully!');
       // Reset form fields
       setFormTitle('');
       setFormDescription('');
       setFormLocation('');
-      setFormLatitude('');
-      setFormLongitude('');
+      setFormImageUrl('');
       setFormDate('');
       setFormCategoryId('');
       setFormMaxAttendees('');
@@ -689,7 +874,7 @@ export default function App() {
       if (currentView === 'edit') {
         loadEventDetails(selectedEventId!);
       } else {
-        setCurrentView('my-events');
+        navigate('/my-events');
       }
     } else {
       setErrorMsg(res.error || 'Failed to save event information.');
@@ -705,15 +890,12 @@ export default function App() {
     setFormTitle(ev.title);
     setFormDescription(ev.description);
     setFormLocation(ev.location);
-    setFormLatitude(ev.latitude ? ev.latitude.toString() : '');
-    setFormLongitude(ev.longitude ? ev.longitude.toString() : '');
     // format to YYYY-MM-DDThh:mm
     const dateStr = new Date(ev.date).toISOString().slice(0, 16);
     setFormDate(dateStr);
     setFormCategoryId(ev.categoryId);
     setFormMaxAttendees(ev.maxAttendees ? ev.maxAttendees.toString() : '');
-    setSelectedEventId(ev.id);
-    setCurrentView('edit');
+    navigate(`/events/${ev.id}/edit`);
   };
 
   // Publish Event
@@ -760,8 +942,7 @@ export default function App() {
     if (res.success) {
       setSuccessMsg('Event deleted permanently.');
       if (currentView === 'detail') {
-        setCurrentView('explore');
-        setSelectedEventId(null);
+        navigate('/explore');
         fetchEvents();
       } else if (currentView === 'admin') {
         fetchEvents();
@@ -774,6 +955,16 @@ export default function App() {
   };
 
   // Comments CRUD
+  const mergeCommentIntoState = (raw: any) => {
+    const comment = normalizeComment(raw);
+    setEventComments((prev) => {
+      if (prev.some((c) => c.id === comment.id)) {
+        return prev.map((c) => (c.id === comment.id ? { ...c, ...comment } : c));
+      }
+      return [...prev, comment];
+    });
+  };
+
   const handlePostComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCommentText.trim() || !selectedEventId) return;
@@ -793,18 +984,55 @@ export default function App() {
       return;
     }
 
-    setLoading(true);
+    setIsPostingComment(true);
     const res = await api.createComment(selectedEventId, { content: newCommentText });
-    setLoading(false);
+    setIsPostingComment(false);
     if (res.success) {
+      if (res.data) {
+        mergeCommentIntoState(res.data);
+      }
       setNewCommentText('');
     } else {
       setErrorMsg(res.error || 'Failed to submit comment.');
     }
   };
 
+  const handlePostReply = async (parentCommentId: string) => {
+    if (!replyText.trim() || !selectedEventId) return;
+
+    if (selectedEventId.startsWith('dummy-') || parentCommentId.startsWith('mock-com-')) {
+      // Demo reply addition locally
+      const newCom: Comment = {
+        id: `mock-com-${Date.now()}`,
+        eventId: selectedEventId,
+        userId: user?.id || 'mock-user',
+        username: user?.username || 'Guest',
+        content: replyText,
+        parentCommentId,
+        createdAt: new Date().toISOString()
+      };
+      setEventComments(prev => [...prev, newCom]);
+      setReplyingToCommentId(null);
+      setReplyText('');
+      return;
+    }
+
+    setIsPostingComment(true);
+    const res = await api.createComment(selectedEventId, { content: replyText, parentCommentId });
+    setIsPostingComment(false);
+    if (res.success) {
+      if (res.data) {
+        mergeCommentIntoState(res.data);
+      }
+      setReplyingToCommentId(null);
+      setReplyText('');
+    } else {
+      setErrorMsg(res.error || 'Failed to submit reply.');
+    }
+  };
+
   const handleUpdateComment = async (commentId: string) => {
-    if (!editingCommentText.trim()) return;
+    if (!editingCommentText.trim() || !selectedEventId) return;
 
     if (commentId.startsWith('mock-com-')) {
       setEventComments(prev => prev.map(c => c.id === commentId ? { ...c, content: editingCommentText } : c));
@@ -813,10 +1041,13 @@ export default function App() {
       return;
     }
 
-    setLoading(true);
-    const res = await api.updateComment(commentId, { content: editingCommentText });
-    setLoading(false);
+    setIsPostingComment(true);
+    const res = await api.updateComment(selectedEventId, commentId, { content: editingCommentText });
+    setIsPostingComment(false);
     if (res.success) {
+      if (res.data) {
+        mergeCommentIntoState({ ...res.data, id: commentId });
+      }
       setEditingCommentId(null);
       setEditingCommentText('');
     } else {
@@ -825,18 +1056,27 @@ export default function App() {
   };
 
   const handleDeleteComment = async (commentId: string, adminForce = false) => {
-    if (!confirm('Delete this comment permanently?')) return;
+    if (!confirm('Delete this comment permanently? Replies to it will be deleted too.')) return;
 
     if (commentId.startsWith('mock-com-')) {
-      setEventComments(prev => prev.filter(c => c.id !== commentId));
+      setEventComments(prev => {
+        const removed = collectCommentWithDescendants(commentId, prev);
+        return prev.filter(c => !removed.has(c.id));
+      });
       return;
     }
 
-    setLoading(true);
-    const res = adminForce ? await api.adminForceDeleteComment(commentId) : await api.deleteComment(commentId);
-    setLoading(false);
+    if (!selectedEventId) return;
+
+    setIsPostingComment(true);
+    const res = adminForce ? await api.adminForceDeleteComment(commentId) : await api.deleteComment(selectedEventId, commentId);
+    setIsPostingComment(false);
     if (res.success) {
-      setEventComments(prev => prev.filter(c => c.id !== commentId));
+      // Deleting a comment also removes its replies (the backend cascades)
+      setEventComments(prev => {
+        const removed = collectCommentWithDescendants(commentId, prev);
+        return prev.filter(c => !removed.has(c.id));
+      });
     } else {
       setErrorMsg(res.error || 'Failed to delete comment.');
     }
@@ -911,9 +1151,17 @@ export default function App() {
     }
   };
 
-  const toggleLike = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setLikedEvents(prev => ({ ...prev, [id]: !prev[id] }));
+  const handleUnbanUser = async (userId: string) => {
+    if (!confirm('Restore access for this user?')) return;
+    setLoading(true);
+    const res = await api.adminUnbanUser(userId);
+    setLoading(false);
+    if (res.success) {
+      setSuccessMsg('User unbanned successfully.');
+      fetchAdminData();
+    } else {
+      setErrorMsg(res.error || 'Failed to unban user.');
+    }
   };
 
   const handleCreateEventClick = () => {
@@ -925,30 +1173,31 @@ export default function App() {
     setFormTitle('');
     setFormDescription('');
     setFormLocation('');
-    setFormLatitude('');
-    setFormLongitude('');
+    setFormImageUrl('');
     setFormDate('');
     setFormCategoryId(categories[0]?.id || '');
     setFormMaxAttendees('');
-    setCurrentView('create');
+    navigate('/events/create');
   };
 
-  const handleNavigate = (view: 'explore' | 'my-events' | 'admin') => {
-    setCurrentView(view);
-    setSelectedEventId(null);
+  const handleNavigate = (view: 'home' | 'explore' | 'my-events' | 'admin') => {
     setSelectedEvent(null);
-    if (view === 'explore') {
-      fetchEvents();
-    }
+    setSelectedCategoryId('');
+    setSearchTerm('');
+    setActivePage(1);
+    if (view === 'home') navigate('/');
+    else if (view === 'explore') navigate('/explore');
+    else if (view === 'my-events') navigate('/my-events');
+    else if (view === 'admin') navigate('/admin');
   };
 
   const getCategoryMeta = (catName: string) => {
     const name = catName?.toLowerCase() || '';
-    if (name.includes('tech')) return { badgeClass: 'bg-[#4648d4]/10 text-[#4648d4]', image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&auto=format&fit=crop&q=80' };
-    if (name.includes('sport') || name.includes('wellness')) return { badgeClass: 'bg-emerald-100 text-emerald-800', image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600&auto=format&fit=crop&q=80' };
-    if (name.includes('music')) return { badgeClass: 'bg-pink-100 text-pink-700', image: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=600&auto=format&fit=crop&q=80' };
-    if (name.includes('art')) return { badgeClass: 'bg-orange-100 text-orange-800', image: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=600&auto=format&fit=crop&q=80' };
-    return { badgeClass: 'bg-slate-100 text-slate-700', image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600&auto=format&fit=crop&q=80' };
+    if (name.includes('tech')) return { badgeClass: 'bg-[#4648d4]/10 text-[#4648d4]' };
+    if (name.includes('sport') || name.includes('wellness')) return { badgeClass: 'bg-emerald-100 text-emerald-800' };
+    if (name.includes('music')) return { badgeClass: 'bg-pink-100 text-pink-700' };
+    if (name.includes('art')) return { badgeClass: 'bg-orange-100 text-orange-800' };
+    return { badgeClass: 'bg-slate-100 text-slate-700' };
   };
 
   return (
@@ -994,28 +1243,90 @@ export default function App() {
         currentView={currentView}
         onNavigate={handleNavigate}
         searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
+        onSearchChange={(val) => { setSearchTerm(val); setActivePage(1); }}
         onCreateEventClick={handleCreateEventClick}
       />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8">
         
-        {/* VIEW: EXPLORE HUB */}
-        {currentView === 'explore' && (
-          <div className="space-y-8 animate-fade-in">
+        {/* VIEW: HOME HUB */}
+        {currentView === 'home' && (
+          <div className="space-y-12 animate-fade-in text-left">
             {/* Componentized Hero */}
             <Hero />
+
+            {/* Featured Section */}
+            <div className="space-y-6">
+              <div className="border-b border-slate-100 pb-3">
+                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#4648d4] text-lg font-bold">celebration</span>
+                  Featured Experiences
+                </h3>
+              </div>
+
+              {events.filter(e => e.status === 'Published').length === 0 ? (
+                <div className="text-center py-20 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+                  <span className="material-symbols-outlined text-4xl text-slate-300">event_busy</span>
+                  <div className="space-y-1">
+                    <h4 className="font-extrabold text-slate-700 text-sm">No featured events yet</h4>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">Stay tuned! Experiences will be hosted soon.</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {events
+                      .filter((e) => e.status === 'Published')
+                      .slice(0, 3)
+                      .map((ev) => (
+                        <EventCard
+                          key={ev.id}
+                          ev={ev}
+                          onViewDetails={loadEventDetails}
+                        />
+                      ))}
+                  </div>
+
+                  <div className="text-center pt-6">
+                    <button
+                      onClick={() => navigate('/explore')}
+                      className="px-6 py-3 bg-[#4648d4] hover:bg-[#3738bd] text-white text-xs font-bold rounded-xl transition-all shadow-md inline-flex items-center gap-2"
+                    >
+                      <span>View All Events</span>
+                      <span className="material-symbols-outlined text-sm font-bold">arrow_forward</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* VIEW: EXPLORE HUB */}
+        {currentView === 'explore' && (
+          <div className="space-y-8 animate-fade-in text-left">
+            <div>
+              <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Explore Gatherings</h2>
+              <p className="text-xs text-slate-400 font-semibold mt-0.5">Filter and search for the perfect community experience.</p>
+            </div>
 
             {/* Componentized Category pills */}
             <CategoryFilters
               categories={categories}
               selectedCategoryId={selectedCategoryId}
-              onSelectCategory={setSelectedCategoryId}
+              onSelectCategory={(id) => { setSelectedCategoryId(id); setActivePage(1); }}
             />
 
             {/* Event Grid */}
             <div className="space-y-6">
+              {events.filter(e => e.status === 'Published').length > 0 && (
+                <div className="flex justify-between items-center pb-2">
+                  <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">
+                    {totalCount} {totalCount === 1 ? 'Event' : 'Events'} Found
+                  </span>
+                </div>
+              )}
               {events.filter(e => e.status === 'Published').length === 0 ? (
                 <div className="text-center py-20 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
                   <span className="material-symbols-outlined text-4xl text-slate-300">event_busy</span>
@@ -1032,8 +1343,6 @@ export default function App() {
                       <EventCard
                         key={ev.id}
                         ev={ev}
-                        isLiked={likedEvents[ev.id] || false}
-                        onToggleLike={toggleLike}
                         onViewDetails={loadEventDetails}
                       />
                     ))}
@@ -1042,9 +1351,10 @@ export default function App() {
             </div>
 
             {/* Componentized Pagination */}
-            {events.filter(e => e.status === 'Published').length > 0 && (
+            {totalPages > 1 && (
               <Pagination
                 activePage={activePage}
+                totalPages={totalPages}
                 onPageChange={setActivePage}
               />
             )}
@@ -1068,24 +1378,35 @@ export default function App() {
               <div className="lg:col-span-2 space-y-6">
                 
                 <div className="rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-xs">
-                  <div className="h-60 relative bg-slate-100">
-                    <img 
-                      src={getCategoryMeta(selectedEvent.categoryName).image} 
-                      alt={selectedEvent.title} 
-                      className="w-full h-full object-cover" 
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-                    <div className="absolute bottom-6 left-6 text-white space-y-2">
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase bg-white/20 backdrop-blur-md text-white border border-white/10`}>
+                  {selectedEvent.imageUrl ? (
+                    <div className="h-60 relative bg-slate-100">
+                      <img 
+                        src={selectedEvent.imageUrl} 
+                        alt={selectedEvent.title} 
+                        className="w-full h-full object-cover" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                      <div className="absolute bottom-6 left-6 text-white space-y-2">
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase bg-white/20 backdrop-blur-md text-white border border-white/10`}>
+                          {selectedEvent.categoryName}
+                        </span>
+                        <h2 className="text-xl md:text-2xl font-extrabold tracking-tight">
+                          {selectedEvent.title}
+                        </h2>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-6 bg-slate-50 border-b border-slate-100 space-y-2">
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${getCategoryMeta(selectedEvent.categoryName).badgeClass}`}>
                         {selectedEvent.categoryName}
                       </span>
-                      <h2 className="text-xl md:text-2xl font-extrabold tracking-tight">
+                      <h2 className="text-xl md:text-2xl font-extrabold tracking-tight text-slate-900">
                         {selectedEvent.title}
                       </h2>
                     </div>
-                  </div>
+                  )}
                   
-                  <div className="p-5 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 bg-slate-50/50">
+                  <div className="p-5 flex flex-wrap items-center justify-between gap-4 bg-white">
                     <div className="flex items-center gap-3 text-xs font-bold text-slate-400">
                       <span className="flex items-center gap-1">
                         <span className="material-symbols-outlined text-sm text-[#4648d4]">person</span>
@@ -1202,7 +1523,20 @@ export default function App() {
 
                   <div className="pt-2 flex items-center justify-between gap-4 border-t border-slate-100">
                     {token ? (
-                      eventAttendees.some(a => a.userId === user?.id) ? (
+                      user?.role === 'Organizer' || user?.role === 'Admin' ? (
+                        // Organizers/Admins cannot join events
+                        user?.id === selectedEvent.organizerId ? (
+                          <div className="w-full flex items-center gap-2 bg-[#4648d4]/5 text-[#4648d4] px-4 py-2 rounded-xl border border-[#4648d4]/10">
+                            <span className="material-symbols-outlined text-base">shield_person</span>
+                            <span className="text-xs font-bold">You are hosting this event</span>
+                          </div>
+                        ) : (
+                          <div className="w-full flex items-center gap-2 bg-slate-50 text-slate-500 px-4 py-2 rounded-xl border border-slate-200">
+                            <span className="material-symbols-outlined text-base">info</span>
+                            <span className="text-xs font-bold">Organizers can browse events but cannot join as attendees</span>
+                          </div>
+                        )
+                      ) : eventAttendees.some(a => a.userId === user?.id) ? (
                         <button
                           onClick={() => handleLeaveEvent(selectedEvent.id)}
                           className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-bold rounded-xl active:scale-95 transition-all text-xs flex items-center gap-1.5 shadow-sm"
@@ -1217,14 +1551,14 @@ export default function App() {
                           className="px-4 py-2 bg-[#4648d4] hover:bg-[#3738bd] text-white font-bold rounded-xl active:scale-95 transition-all text-xs disabled:opacity-55 disabled:pointer-events-none flex items-center gap-1.5 shadow-sm"
                         >
                           <span className="material-symbols-outlined text-base">check_circle</span>
-                          {selectedEvent.maxAttendees !== undefined && eventAttendees.length >= selectedEvent.maxAttendees ? 'Event Full' : 'Join Event'}
+                          {selectedEvent.maxAttendees !== undefined && eventAttendees.length >= selectedEvent.maxAttendees ? 'Event Full' : 'Join Free'}
                         </button>
                       )
                     ) : (
                       <div className="w-full flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                         <div>
                           <p className="text-xs font-bold text-slate-700">Want to attend this event?</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">Please sign in to book your ticket spot.</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Sign in to join — all events are free.</p>
                         </div>
                         <button
                           onClick={() => { setAuthTab('login'); setShowAuthModal(true); }}
@@ -1260,11 +1594,24 @@ export default function App() {
               <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col h-[520px] lg:h-auto">
                 <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                   <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      commentHubState === 'connected' ? 'bg-emerald-500' :
+                      commentHubState === 'connecting' || commentHubState === 'reconnecting' ? 'bg-amber-500 animate-pulse' :
+                      'bg-slate-300'
+                    }`}></span>
                     Live Conversations
                   </h3>
-                  <span className="px-2 py-0.5 bg-red-50 text-red-700 text-[8px] font-bold rounded-full uppercase tracking-wider">
-                    SignalR Live
+                  <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full uppercase tracking-wider ${
+                    commentHubState === 'connected'
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : commentHubState === 'connecting' || commentHubState === 'reconnecting'
+                      ? 'bg-amber-50 text-amber-700'
+                      : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {commentHubState === 'connected' ? 'Live' :
+                     commentHubState === 'connecting' ? 'Connecting...' :
+                     commentHubState === 'reconnecting' ? 'Reconnecting...' :
+                     'Offline'}
                   </span>
                 </div>
 
@@ -1276,77 +1623,129 @@ export default function App() {
                       <p className="text-[10px] max-w-[150px]">Coordinate with other attendees here live!</p>
                     </div>
                   ) : (
-                    eventComments.map((com) => {
-                      const isOwner = user && com.userId === user.id;
-                      const isAdmin = user?.role === 'Admin';
-                      return (
-                        <div key={com.id} className="group/com space-y-1">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[9px] font-extrabold text-slate-700">
-                                {com.username}
-                              </span>
-                              {selectedEvent.organizerId === com.userId && (
-                                <span className="px-1 py-0.2 bg-[#4648d4]/10 text-[#4648d4] text-[8px] font-extrabold rounded uppercase tracking-wider">
-                                  Host
+                    (() => {
+                      const renderComment = (com: Comment, depth: number): React.ReactNode => {
+                        const isOwner = user && com.userId === user.id;
+                        const isAdmin = user?.role === 'Admin';
+                        const replies = eventComments
+                          .filter((c) => c.parentCommentId === com.id)
+                          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+                        return (
+                          <div key={com.id} className="group/com space-y-1">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] font-extrabold text-slate-700">
+                                  {com.username}
                                 </span>
+                                {selectedEvent.organizerId === com.userId && (
+                                  <span className="px-1 py-0.2 bg-[#4648d4]/10 text-[#4648d4] text-[8px] font-extrabold rounded uppercase tracking-wider">
+                                    Host
+                                  </span>
+                                )}
+                                <span className="text-[9px] text-slate-400 font-bold">
+                                  {new Date(com.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+
+                              {token && (
+                                <div className="opacity-0 group-hover/com:opacity-100 flex items-center gap-1 transition-opacity">
+                                  <button
+                                    onClick={() => { setReplyingToCommentId(replyingToCommentId === com.id ? null : com.id); setReplyText(''); }}
+                                    className="p-0.5 hover:text-[#4648d4] text-slate-400 transition-colors"
+                                    title="Reply"
+                                  >
+                                    <span className="material-symbols-outlined text-sm font-bold">reply</span>
+                                  </button>
+                                  {isOwner && editingCommentId !== com.id && (
+                                    <button
+                                      onClick={() => { setEditingCommentId(com.id); setEditingCommentText(com.content); }}
+                                      className="p-0.5 hover:text-[#4648d4] text-slate-400 transition-colors"
+                                    >
+                                      <span className="material-symbols-outlined text-sm font-bold">edit</span>
+                                    </button>
+                                  )}
+                                  {(isOwner || isAdmin) && (
+                                    <button
+                                      onClick={() => handleDeleteComment(com.id, isAdmin && !isOwner)}
+                                      className="p-0.5 hover:text-red-500 text-slate-400 transition-colors"
+                                    >
+                                      <span className="material-symbols-outlined text-sm font-bold">delete</span>
+                                    </button>
+                                  )}
+                                </div>
                               )}
-                              <span className="text-[9px] text-slate-400 font-bold">
-                                {new Date(com.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
                             </div>
 
-                            {(isOwner || isAdmin) && (
-                              <div className="opacity-0 group-hover/com:opacity-100 flex items-center gap-1 transition-opacity">
-                                {isOwner && editingCommentId !== com.id && (
+                            {editingCommentId === com.id ? (
+                              <div className="space-y-1.5 bg-slate-50 p-2 rounded-xl border border-[#4648d4]/20">
+                                <textarea
+                                  value={editingCommentText}
+                                  onChange={(e) => setEditingCommentText(e.target.value)}
+                                  rows={2}
+                                  className="w-full text-xs p-1.5 rounded bg-white text-slate-800 border border-slate-200 focus:outline-none focus:ring-1 focus:ring-[#4648d4]"
+                                />
+                                <div className="flex items-center justify-end gap-1">
                                   <button
-                                    onClick={() => { setEditingCommentId(com.id); setEditingCommentText(com.content); }}
-                                    className="p-0.5 hover:text-[#4648d4] text-slate-400 transition-colors"
+                                    onClick={() => setEditingCommentId(null)}
+                                    className="px-2 py-1 bg-slate-200 text-slate-600 text-[8px] font-bold rounded"
                                   >
-                                    <span className="material-symbols-outlined text-sm font-bold">edit</span>
+                                    Cancel
                                   </button>
-                                )}
-                                <button
-                                  onClick={() => handleDeleteComment(com.id, isAdmin && !isOwner)}
-                                  className="p-0.5 hover:text-red-500 text-slate-400 transition-colors"
-                                >
-                                  <span className="material-symbols-outlined text-sm font-bold">delete</span>
-                                </button>
+                                  <button
+                                    onClick={() => handleUpdateComment(com.id)}
+                                    className="px-2 py-1 bg-[#4648d4] text-white text-[8px] font-bold rounded"
+                                  >
+                                    Save
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="bg-slate-50 p-2.5 rounded-2xl text-xs text-slate-600 font-medium leading-relaxed border border-slate-100/50 whitespace-pre-wrap">
+                                {com.content}
+                              </div>
+                            )}
+
+                            {replyingToCommentId === com.id && (
+                              <div className="space-y-1.5 bg-slate-50 p-2 rounded-xl border border-[#4648d4]/20">
+                                <textarea
+                                  value={replyText}
+                                  onChange={(e) => setReplyText(e.target.value)}
+                                  placeholder={`Reply to ${com.username}...`}
+                                  rows={2}
+                                  className="w-full text-xs p-1.5 rounded bg-white text-slate-800 border border-slate-200 focus:outline-none focus:ring-1 focus:ring-[#4648d4]"
+                                />
+                                <div className="flex items-center justify-end gap-1">
+                                  <button
+                                    onClick={() => { setReplyingToCommentId(null); setReplyText(''); }}
+                                    className="px-2 py-1 bg-slate-200 text-slate-600 text-[8px] font-bold rounded"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handlePostReply(com.id)}
+                                    disabled={!replyText.trim()}
+                                    className="px-2 py-1 bg-[#4648d4] text-white text-[8px] font-bold rounded disabled:opacity-40"
+                                  >
+                                    Reply
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {replies.length > 0 && (
+                              <div className="ml-3 pl-3 border-l-2 border-slate-100 space-y-3 pt-1">
+                                {replies.map((reply) => renderComment(reply, depth + 1))}
                               </div>
                             )}
                           </div>
+                        );
+                      };
 
-                          {editingCommentId === com.id ? (
-                            <div className="space-y-1.5 bg-slate-50 p-2 rounded-xl border border-[#4648d4]/20">
-                              <textarea
-                                value={editingCommentText}
-                                onChange={(e) => setEditingCommentText(e.target.value)}
-                                rows={2}
-                                className="w-full text-xs p-1.5 rounded bg-white text-slate-800 border border-slate-200 focus:outline-none focus:ring-1 focus:ring-[#4648d4]"
-                              />
-                              <div className="flex items-center justify-end gap-1">
-                                <button
-                                  onClick={() => setEditingCommentId(null)}
-                                  className="px-2 py-1 bg-slate-200 text-slate-600 text-[8px] font-bold rounded"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  onClick={() => handleUpdateComment(com.id)}
-                                  className="px-2 py-1 bg-[#4648d4] text-white text-[8px] font-bold rounded"
-                                >
-                                  Save
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="bg-slate-50 p-2.5 rounded-2xl text-xs text-slate-600 font-medium leading-relaxed border border-slate-100/50 whitespace-pre-wrap">
-                              {com.content}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
+                      return eventComments
+                        .filter((c) => !c.parentCommentId || !eventComments.some((p) => p.id === c.parentCommentId))
+                        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+                        .map((com) => renderComment(com, 0));
+                    })()
                   )}
                 </div>
 
@@ -1362,10 +1761,10 @@ export default function App() {
                       />
                       <button
                         type="submit"
-                        disabled={!newCommentText.trim()}
+                        disabled={!newCommentText.trim() || isPostingComment}
                         className="h-9 w-9 rounded-xl bg-[#4648d4] text-white flex items-center justify-center shrink-0 disabled:opacity-40 disabled:pointer-events-none transition-all shadow-sm"
                       >
-                        <span className="material-symbols-outlined text-base">send</span>
+                        <span className="material-symbols-outlined text-base">{isPostingComment ? 'hourglass_top' : 'send'}</span>
                       </button>
                     </form>
                   ) : (
@@ -1399,9 +1798,9 @@ export default function App() {
               <button
                 onClick={() => {
                   if (currentView === 'edit' && selectedEventId) {
-                    loadEventDetails(selectedEventId);
+                    navigate(`/events/${selectedEventId}`);
                   } else {
-                    setCurrentView('explore');
+                    navigate('/explore');
                   }
                 }}
                 className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors"
@@ -1487,37 +1886,39 @@ export default function App() {
                 />
               </div>
 
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                  <h4 className="text-xs font-bold text-slate-700">Geomap Coordinates (Optional)</h4>
-                  <span className="px-2 py-0.5 rounded bg-[#4648d4]/10 text-[#4648d4] text-[8px] font-extrabold uppercase">Coords</span>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Cover Image (Optional)</label>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Latitude</label>
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="e.g. 37.7749"
-                      value={formLatitude}
-                      onChange={(e) => setFormLatitude(e.target.value)}
-                      className="w-full p-2.5 bg-white text-slate-800 rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-[#4648d4] text-xs"
-                    />
+                {formImageUrl ? (
+                  <div className="relative w-full h-40 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 group">
+                    <img src={formImageUrl} alt="Preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setFormImageUrl('')}
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/80 backdrop-blur text-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white hover:scale-110"
+                    >
+                      <span className="material-symbols-outlined text-sm font-bold">close</span>
+                    </button>
                   </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Longitude</label>
+                ) : (
+                  <label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors">
+                    {isUploadingImage ? (
+                      <div className="w-6 h-6 border-[3px] border-[#4648d4] border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-slate-400">
+                        <span className="material-symbols-outlined">upload_file</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Select an image from PC</span>
+                      </div>
+                    )}
                     <input
-                      type="number"
-                      step="any"
-                      placeholder="e.g. -122.4194"
-                      value={formLongitude}
-                      onChange={(e) => setFormLongitude(e.target.value)}
-                      className="w-full p-2.5 bg-white text-slate-800 rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-[#4648d4] text-xs"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                      disabled={isUploadingImage}
                     />
-                  </div>
-                </div>
+                  </label>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
@@ -1525,9 +1926,9 @@ export default function App() {
                   type="button"
                   onClick={() => {
                     if (currentView === 'edit' && selectedEventId) {
-                      loadEventDetails(selectedEventId);
+                      navigate(`/events/${selectedEventId}`);
                     } else {
-                      setCurrentView('explore');
+                      navigate('/explore');
                     }
                   }}
                   className="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-200 transition-colors"
@@ -1536,9 +1937,9 @@ export default function App() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4.5 py-2 bg-[#4648d4] hover:bg-[#3738bd] text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+                  className="px-5 py-2.5 ml-2 bg-[#4648d4] hover:bg-[#3738bd] text-white text-xs font-bold rounded-xl transition-all shadow-sm"
                 >
-                  {currentView === 'edit' ? 'Save Changes' : 'Create Draft'}
+                  {currentView === 'edit' ? 'Save Changes' : 'Publish'}
                 </button>
               </div>
             </form>
@@ -1553,151 +1954,157 @@ export default function App() {
               <p className="text-xs text-slate-400 font-semibold mt-0.5">Manage events you organized or joined.</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`grid grid-cols-1 ${user?.role === 'Admin' ? 'lg:grid-cols-2' : ''} gap-6`}>
               
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 space-y-4 shadow-xs">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#4648d4] text-lg">campaign</span>
-                    My Hosted Gatherings
-                  </h3>
-                  <span className="px-2 py-0.5 rounded-full bg-[#4648d4]/10 text-[#4648d4] text-[9px] font-bold">
-                    {myHostedEvents.length} Hosted
-                  </span>
-                </div>
-
-                {myHostedEvents.length === 0 ? (
-                  <div className="text-center py-12 text-slate-400 space-y-2">
-                    <span className="material-symbols-outlined text-2xl opacity-60">post_add</span>
-                    <p className="text-xs font-bold">No organized events.</p>
-                    <button
-                      onClick={handleCreateEventClick}
-                      className="text-xs text-[#4648d4] font-bold underline"
-                    >
-                      Host event now
-                    </button>
+              {/* Column 1: Hosted Gatherings (Admins and Organizers) */}
+              {(user?.role === 'Admin' || user?.role === 'Organizer') && (
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 space-y-4 shadow-xs">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[#4648d4] text-lg">campaign</span>
+                      My Hosted Gatherings
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full bg-[#4648d4]/10 text-[#4648d4] text-[9px] font-bold">
+                      {myHostedEvents.length} Hosted
+                    </span>
                   </div>
-                ) : (
-                  <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
-                    {myHostedEvents.map((ev) => (
-                      <div 
-                        key={ev.id}
-                        className="p-4 rounded-2xl bg-[#f8f9ff] border border-slate-100 flex items-center justify-between gap-4"
+
+                  {myHostedEvents.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 space-y-2">
+                      <span className="material-symbols-outlined text-2xl opacity-60">post_add</span>
+                      <p className="text-xs font-bold">No organized events.</p>
+                      <button
+                        onClick={handleCreateEventClick}
+                        className="text-xs text-[#4648d4] font-bold underline"
                       >
-                        <div className="space-y-1 flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[8px] font-extrabold uppercase bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-500">
-                              {ev.categoryName}
-                            </span>
-                            {ev.status === 'Draft' && <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-100">Draft</span>}
-                            {ev.status === 'Published' && <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100">Live</span>}
-                            {ev.status === 'Cancelled' && <span className="text-[8px] font-bold text-red-600 bg-red-50 px-1.5 py-0.2 rounded border border-red-100">Cancelled</span>}
+                        Host event now
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
+                      {myHostedEvents.map((ev) => (
+                        <div 
+                          key={ev.id}
+                          className="p-4 rounded-2xl bg-[#f8f9ff] border border-slate-100 flex items-center justify-between gap-4"
+                        >
+                          <div className="space-y-1 flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[8px] font-extrabold uppercase bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-500">
+                                {ev.categoryName}
+                              </span>
+                              {ev.status === 'Draft' && <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-100">Draft</span>}
+                              {ev.status === 'Published' && <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100">Live</span>}
+                              {ev.status === 'Cancelled' && <span className="text-[8px] font-bold text-red-600 bg-red-50 px-1.5 py-0.2 rounded border border-red-100">Cancelled</span>}
+                            </div>
+                            <h4 className="text-xs font-extrabold text-slate-800 truncate hover:text-[#4648d4] cursor-pointer" onClick={() => loadEventDetails(ev.id)}>
+                              {ev.title}
+                            </h4>
+                            <p className="text-[9px] text-slate-400 font-bold">
+                              {new Date(ev.date).toLocaleDateString()} at {new Date(ev.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
                           </div>
-                          <h4 className="text-xs font-extrabold text-slate-800 truncate hover:text-[#4648d4] cursor-pointer" onClick={() => loadEventDetails(ev.id)}>
-                            {ev.title}
-                          </h4>
-                          <p className="text-[9px] text-slate-400 font-bold">
-                            {new Date(ev.date).toLocaleDateString()} at {new Date(ev.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {ev.status === 'Draft' && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {ev.status === 'Draft' && (
+                              <button
+                                onClick={() => handlePublishEvent(ev.id)}
+                                className="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[9px] rounded shadow-sm animate-pulse-subtle"
+                              >
+                                Publish
+                              </button>
+                            )}
+                            {ev.status === 'Published' && (
+                              <button
+                                onClick={() => handleCancelEvent(ev.id)}
+                                className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[9px] rounded shadow-sm"
+                              >
+                                Cancel
+                              </button>
+                            )}
                             <button
-                              onClick={() => handlePublishEvent(ev.id)}
-                              className="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[9px] rounded shadow-sm animate-pulse-subtle"
+                              onClick={() => openEditEventView(ev)}
+                              className="w-7 h-7 rounded bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700"
                             >
-                              Publish
+                              <span className="material-symbols-outlined text-base">edit</span>
                             </button>
-                          )}
-                          {ev.status === 'Published' && (
                             <button
-                              onClick={() => handleCancelEvent(ev.id)}
-                              className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[9px] rounded shadow-sm"
+                              onClick={() => handleDeleteEvent(ev.id)}
+                              className="w-7 h-7 rounded bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100"
                             >
-                              Cancel
+                              <span className="material-symbols-outlined text-base">delete</span>
                             </button>
-                          )}
-                          <button
-                            onClick={() => openEditEventView(ev)}
-                            className="w-7 h-7 rounded bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700"
-                          >
-                            <span className="material-symbols-outlined text-base">edit</span>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteEvent(ev.id)}
-                            className="w-7 h-7 rounded bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100"
-                          >
-                            <span className="material-symbols-outlined text-base">delete</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 space-y-4 shadow-xs">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#4648d4] text-lg">local_activity</span>
-                    My Booked Tickets
-                  </h3>
-                  <span className="px-2 py-0.5 rounded-full bg-[#4648d4]/10 text-[#4648d4] text-[9px] font-bold">
-                    {myBookings.length} Booked
-                  </span>
-                </div>
-
-                {myBookings.length === 0 ? (
-                  <div className="text-center py-12 text-slate-400 space-y-2">
-                    <span className="material-symbols-outlined text-2xl opacity-60">confirmation_number</span>
-                    <p className="text-xs font-bold">No booked tickets.</p>
-                    <button
-                      onClick={() => setCurrentView('explore')}
-                      className="text-xs text-[#4648d4] font-bold underline"
-                    >
-                      Find experiences
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
-                    {myBookings.map((b) => (
-                      <div 
-                        key={b.bookingId}
-                        className="p-4 rounded-2xl bg-[#f8f9ff] border border-slate-100 flex items-center justify-between gap-4"
-                      >
-                        <div className="space-y-1 flex-1 min-w-0">
-                          <h4 className="text-xs font-extrabold text-slate-800 truncate hover:text-[#4648d4] cursor-pointer" onClick={() => loadEventDetails(b.eventId)}>
-                            {b.title}
-                          </h4>
-                          <p className="text-[9px] text-slate-400 font-bold">
-                            {new Date(b.date).toLocaleDateString()} at {new Date(b.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                          <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold">
-                            <span className="material-symbols-outlined text-[12px] text-[#4648d4]">location_on</span>
-                            <span className="truncate">{b.location}</span>
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => loadEventDetails(b.eventId)}
-                            className="px-2 py-1 bg-white border border-slate-200 text-slate-600 text-[9px] font-bold rounded"
-                          >
-                            Details
-                          </button>
-                          <button
-                            onClick={() => handleLeaveEvent(b.eventId)}
-                            className="w-7 h-7 rounded bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100"
-                          >
-                            <span className="material-symbols-outlined text-base">logout</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+              {/* Column 2: My Booked Tickets (Admins and Attendees/Users) */}
+              {(user?.role === 'Admin' || user?.role === 'User') && (
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 space-y-4 shadow-xs">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[#4648d4] text-lg">local_activity</span>
+                      My Booked Tickets
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full bg-[#4648d4]/10 text-[#4648d4] text-[9px] font-bold">
+                      {myBookings.length} Booked
+                    </span>
                   </div>
-                )}
-              </div>
+
+                  {myBookings.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 space-y-2">
+                      <span className="material-symbols-outlined text-2xl opacity-60">confirmation_number</span>
+                      <p className="text-xs font-bold">No booked tickets.</p>
+                      <button
+                        onClick={() => navigate('/explore')}
+                        className="text-xs text-[#4648d4] font-bold underline"
+                      >
+                        Find experiences
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
+                      {myBookings.map((b) => (
+                        <div 
+                          key={b.bookingId}
+                          className="p-4 rounded-2xl bg-[#f8f9ff] border border-slate-100 flex items-center justify-between gap-4"
+                        >
+                          <div className="space-y-1 flex-1 min-w-0">
+                            <h4 className="text-xs font-extrabold text-slate-800 truncate hover:text-[#4648d4] cursor-pointer" onClick={() => loadEventDetails(b.eventId)}>
+                              {b.title}
+                            </h4>
+                            <p className="text-[9px] text-slate-400 font-bold">
+                              {new Date(b.date).toLocaleDateString()} at {new Date(b.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                            <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold">
+                              <span className="material-symbols-outlined text-[12px] text-[#4648d4]">location_on</span>
+                              <span className="truncate">{b.location}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => loadEventDetails(b.eventId)}
+                              className="px-2 py-1 bg-white border border-slate-200 text-slate-600 text-[9px] font-bold rounded"
+                            >
+                              Details
+                            </button>
+                            <button
+                              onClick={() => handleLeaveEvent(b.eventId)}
+                              className="w-7 h-7 rounded bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100"
+                            >
+                              <span className="material-symbols-outlined text-base">logout</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
             </div>
           </div>
@@ -1892,6 +2299,14 @@ export default function App() {
                                 Ban Account
                               </button>
                             )}
+                            {u.isBanned && u.role !== 'Admin' && (
+                              <button
+                                onClick={() => handleUnbanUser(u.id)}
+                                className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 text-[10px] font-bold"
+                              >
+                                Undo Ban
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1903,50 +2318,27 @@ export default function App() {
 
             {/* TAB: CONTENT MODERATION */}
             {adminTab === 'moderation' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-                  <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#4648d4] text-lg font-bold">event_busy</span>
-                    Events Force Deletion
-                  </h3>
-                  <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
-                    {events.map((ev) => (
-                      <div key={ev.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-4 text-xs font-medium">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-extrabold text-slate-800 truncate">{ev.title}</p>
-                          <p className="text-[9px] text-slate-400 font-bold">Host: {ev.organizerName} • Status: {ev.status}</p>
-                        </div>
-                        <button
-                          onClick={() => handleDeleteEvent(ev.id, true)}
-                          className="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 font-bold rounded text-[9px]"
-                        >
-                          Force Delete
-                        </button>
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#4648d4] text-lg font-bold">event_busy</span>
+                  Events Force Deletion
+                </h3>
+                <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
+                  {events.map((ev) => (
+                    <div key={ev.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-4 text-xs font-medium">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-extrabold text-slate-800 truncate">{ev.title}</p>
+                        <p className="text-[9px] text-slate-400 font-bold">Host: {ev.organizerName} • Status: {ev.status}</p>
                       </div>
-                    ))}
-                  </div>
+                      <button
+                        onClick={() => handleDeleteEvent(ev.id, true)}
+                        className="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 font-bold rounded text-[9px]"
+                      >
+                        Force Delete
+                      </button>
+                    </div>
+                  ))}
                 </div>
-
-                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-                  <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#4648d4] text-lg font-bold">comment_bank</span>
-                    Chat Board Moderation
-                  </h3>
-                  <p className="text-xs text-slate-400 leading-normal font-semibold">
-                    To moderate comments, visit the specific Event Details page. As an Admin, option buttons to delete comments from any author will automatically show in the live feed.
-                  </p>
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-2">
-                    <h4 className="font-bold text-slate-800">Step-by-step:</h4>
-                    <ul className="list-disc list-inside text-[11px] text-slate-500 space-y-1 font-semibold">
-                      <li>Go to Explore page.</li>
-                      <li>Click Details on any event.</li>
-                      <li>Review comments in live panel.</li>
-                      <li>Click the Trash icon next to offending messages.</li>
-                    </ul>
-                  </div>
-                </div>
-
               </div>
             )}
           </div>
@@ -1956,27 +2348,9 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-200/60 bg-white py-8 px-6 mt-auto shrink-0">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-slate-400 font-bold">
-          <div className="text-center md:text-left space-y-1">
-            <h4 className="text-sm font-extrabold text-slate-800">GatherPulse</h4>
-            <p className="font-medium text-[10px]">© 2024 GatherPulse Inc. Community First.</p>
-          </div>
-          
-          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-slate-500">
-            <a href="#" className="hover:text-slate-800 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-slate-800 transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-slate-800 transition-colors">Contact Support</a>
-            <a href="#" className="hover:text-slate-800 transition-colors">About Us</a>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors">
-              <span className="material-symbols-outlined text-base">share</span>
-            </button>
-            <button className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors">
-              <span className="material-symbols-outlined text-base">settings</span>
-            </button>
-          </div>
+        <div className="max-w-7xl mx-auto flex flex-col items-center justify-center gap-2 text-xs text-slate-400 font-bold text-center">
+          <h4 className="text-sm font-extrabold text-slate-800">GatherPulse</h4>
+          <p className="font-medium text-[10px]">© 2026 GatherPulse Inc. Community First.</p>
         </div>
       </footer>
 
@@ -2001,6 +2375,8 @@ export default function App() {
         onRegisterPasswordChange={setRegisterPassword}
         registerConfirmPassword={registerConfirmPassword}
         onRegisterConfirmPasswordChange={setRegisterConfirmPassword}
+        registerIsOrganizer={registerIsOrganizer}
+        onRegisterIsOrganizerChange={setRegisterIsOrganizer}
         onRegisterSubmit={handleRegister}
       />
 

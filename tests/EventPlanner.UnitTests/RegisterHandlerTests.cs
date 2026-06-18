@@ -9,6 +9,8 @@ using EventPlanner.Server.Infrastructure.Auth;
 using EventPlanner.Server.Infrastructure.Repositories;
 using Microsoft.Extensions.Options;
 
+using EventPlanner.Server.Common.Errors;
+
 namespace EventPlanner.UnitTests;
 
 public class RegisterHandlerTests
@@ -64,7 +66,7 @@ public class RegisterHandlerTests
         _userRepositoryMock.Setup(repo => repo.GetByEmailAsync(command.Email)).ReturnsAsync(existingUser);
 
         // Act & Assert
-        await Assert.ThrowsAsync<Exception>(() => _handler.Handle(command, CancellationToken.None));
+        await Assert.ThrowsAsync<ConflictException>(() => _handler.Handle(command, CancellationToken.None));
         _userRepositoryMock.Verify(repo => repo.CreateAsync(It.IsAny<User>()), Times.Never);
     }
 }

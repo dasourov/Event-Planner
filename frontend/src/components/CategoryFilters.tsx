@@ -18,16 +18,18 @@ export const CategoryFilters: React.FC<CategoryFiltersProps> = ({
   onSelectCategory
 }) => {
   
-  // Icon and tag mapping helper
-  const getCategoryMeta = (catName: string) => {
+  // Icon mapping helper
+  const getCategoryIcon = (catName: string) => {
     const name = catName?.toLowerCase() || '';
-    if (name.includes('tech')) return { icon: 'laptop', tag: 'Tech' };
-    if (name.includes('sport') || name.includes('wellness')) return { icon: 'sports_soccer', tag: 'Wellness' };
-    if (name.includes('music')) return { icon: 'music_note', tag: 'Music' };
-    if (name.includes('art')) return { icon: 'palette', tag: 'Arts' };
-    if (name.includes('networking')) return { icon: 'groups', tag: 'Networking' };
-    if (name.includes('workshop')) return { icon: 'build', tag: 'Workshop' };
-    return { icon: 'spa', tag: 'Wellness' };
+    if (name.includes('tech')) return 'laptop';
+    if (name.includes('sport')) return 'sports_soccer';
+    if (name.includes('music')) return 'music_note';
+    if (name.includes('art')) return 'palette';
+    if (name.includes('networking')) return 'groups';
+    if (name.includes('wellness')) return 'spa';
+    if (name.includes('workshop')) return 'build';
+    if (name.includes('food')) return 'restaurant';
+    return 'label'; // Default icon
   };
 
   return (
@@ -45,7 +47,7 @@ export const CategoryFilters: React.FC<CategoryFiltersProps> = ({
       </button>
 
       {categories.map((c) => {
-        const meta = getCategoryMeta(c.name);
+        const icon = getCategoryIcon(c.name);
         const isActive = selectedCategoryId === c.id;
         return (
           <button
@@ -57,8 +59,8 @@ export const CategoryFilters: React.FC<CategoryFiltersProps> = ({
                 : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
             }`}
           >
-            <span className={`material-symbols-outlined text-sm ${isActive ? 'text-white' : 'text-[#4648d4]'}`}>{meta.icon}</span>
-            {meta.tag}
+            <span className={`material-symbols-outlined text-sm ${isActive ? 'text-white' : 'text-[#4648d4]'}`}>{icon}</span>
+            {c.name}
           </button>
         );
       })}

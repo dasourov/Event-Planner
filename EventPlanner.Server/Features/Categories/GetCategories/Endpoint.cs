@@ -10,7 +10,7 @@ public class GetCategoriesEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/categories", async (ISender sender) =>
+        app.MapGet("/categories", async (ISender sender) =>
         {
             var response = await sender.Send(new GetCategoriesQuery());
             return Results.Ok(response);

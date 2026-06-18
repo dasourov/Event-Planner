@@ -6,6 +6,7 @@ using EventPlanner.Server.Domain.Entities;
 using EventPlanner.Server.Domain.Enums;
 using EventPlanner.Server.Infrastructure.Auth;
 using EventPlanner.Server.Infrastructure.Repositories;
+using EventPlanner.Server.Common.Errors;
 
 namespace EventPlanner.Server.Features.Auth.Register;
 
@@ -27,13 +28,13 @@ public class RegisterHandler : IRequestHandler<RegisterCommand, RegisterResponse
         var existingEmail = await _userRepository.GetByEmailAsync(request.Email);
         if (existingEmail != null)
         {
-            throw new Exception("Email already registered");
+            throw new ConflictException("Email already registered");
         }
 
         var existingUsername = await _userRepository.GetByUsernameAsync(request.Username);
         if (existingUsername != null)
         {
-            throw new Exception("Username already taken");
+            throw new ConflictException("Username already taken");
         }
 
         var user = new User
@@ -41,7 +42,8 @@ public class RegisterHandler : IRequestHandler<RegisterCommand, RegisterResponse
             Username = request.Username,
             Email = request.Email,
             PasswordHash = _passwordHasher.HashPassword(request.Password),
-            Role = UserRole.User,
+            Role = request.IsOrganizer ? UserRole.Organizer : UserRole.User,
+            IsOrganizer = request.IsOrganizer,
             CreatedAt = DateTime.UtcNow
         };
 

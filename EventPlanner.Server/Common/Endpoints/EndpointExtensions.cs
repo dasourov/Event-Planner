@@ -23,10 +23,12 @@ public static class EndpointExtensions
 
     public static IEndpointRouteBuilder MapEndpoints(this IEndpointRouteBuilder app)
     {
+        var apiV1Group = app.MapGroup("/api/v1");
+
         var endpoints = app.ServiceProvider.GetServices<IEndpoint>();
         foreach (var endpoint in endpoints)
         {
-            endpoint.MapEndpoint(app);
+            endpoint.MapEndpoint(apiV1Group);
         }
         return app;
     }

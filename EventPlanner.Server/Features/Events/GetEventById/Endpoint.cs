@@ -10,7 +10,7 @@ public class GetEventByIdEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/events/{id}", async (string id, ISender sender) =>
+        app.MapGet("/events/{id}", async (string id, ISender sender) =>
         {
             var response = await sender.Send(new GetEventByIdQuery(id));
             return Results.Ok(response);

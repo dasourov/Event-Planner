@@ -2,6 +2,7 @@ namespace EventPlanner.Server.Domain.Enums;
 
 public enum UserRole
 {
-    User,
-    Admin
+    User = 0,
+    Admin = 1,
+    Organizer = 2
 }

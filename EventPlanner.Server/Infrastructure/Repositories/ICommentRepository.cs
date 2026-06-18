@@ -10,5 +10,6 @@ public interface ICommentRepository
     Task CreateAsync(Comment comment);
     Task UpdateAsync(Comment comment);
     Task DeleteAsync(string id);
+    Task DeleteManyAsync(List<string> ids);
     Task<List<Comment>> ListByEventAsync(string eventId);
 }

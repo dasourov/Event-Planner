@@ -22,12 +22,20 @@ public class GetEventAttendeesHandler : IRequestHandler<GetEventAttendeesQuery, 
     public async Task<List<GetEventAttendeesResponse>> Handle(GetEventAttendeesQuery request, CancellationToken cancellationToken)
     {
         var bookings = await _bookingRepository.ListByEventAsync(request.EventId);
+
         var resultList = new List<GetEventAttendeesResponse>();
+        if (bookings == null || bookings.Count == 0)
+        {
+            return resultList;
+        }
+
+        var userIds = bookings.Select(b => b.UserId).Distinct().ToList();
+        var users = await _userRepository.GetByIdsAsync(userIds);
+        var usersDict = users.ToDictionary(u => u.Id);
 
         foreach (var booking in bookings)
         {
-            var user = await _userRepository.GetByIdAsync(booking.UserId);
-            if (user != null)
+            if (usersDict.TryGetValue(booking.UserId, out var user))
             {
                 resultList.Add(new GetEventAttendeesResponse(user.Id, user.Username, user.Email));
             }

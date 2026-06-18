@@ -8,6 +8,7 @@ public record UpdateEventCommand(
     string Title,
     string Description,
     string Location,
+    string? ImageUrl,
     double? Latitude,
     double? Longitude,
     DateTime Date,

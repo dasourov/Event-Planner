@@ -43,6 +43,7 @@ public class GetEventByIdHandler : IRequestHandler<GetEventByIdQuery, GetEventBy
             @event.Title,
             @event.Description,
             @event.Location,
+            @event.ImageUrl,
             @event.Latitude,
             @event.Longitude,
             @event.Date,

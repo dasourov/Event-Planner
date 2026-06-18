@@ -7,18 +7,23 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   success: boolean;
+  banned?: boolean;
 }
 
 async function request<T>(
   url: string,
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
-  body?: any
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' = 'GET',
+  body?: any,
+  isFormData: boolean = false
 ): Promise<ApiResponse<T>> {
   try {
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
       ...getAuthHeaders(),
     };
+
+    if (!isFormData) {
+      (headers as any)['Content-Type'] = 'application/json';
+    }
 
     const config: RequestInit = {
       method,
@@ -26,24 +31,31 @@ async function request<T>(
     };
 
     if (body) {
-      config.body = JSON.stringify(body);
+      config.body = isFormData ? body : JSON.stringify(body);
     }
 
-    const response = await fetch(url, config);
+    const versionedUrl = url.startsWith('/api/') ? url.replace('/api/', '/api/v1/') : url;
+    const response = await fetch(versionedUrl, config);
     if (!response.ok) {
-      if (response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
       const errText = await response.text();
       let errMsg = 'An error occurred';
       try {
         const errJson = JSON.parse(errText);
-        errMsg = errJson.detail || errJson.message || errMsg;
+        errMsg = errJson.detail || errJson.title || errJson.message || errMsg;
       } catch {
-        errMsg = errText || errMsg;
+        if (errText) errMsg = errText;
       }
-      return { success: false, error: errMsg };
+
+      const isBanned = response.status === 403 && errMsg.toLowerCase().includes('banned');
+      if (isBanned || response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+      if (isBanned) {
+        window.dispatchEvent(new CustomEvent('account-banned', { detail: errMsg }));
+      }
+
+      return { success: false, error: errMsg, banned: isBanned };
     }
 
     const text = await response.text();
@@ -54,11 +66,24 @@ async function request<T>(
   }
 }
 
+export interface PaginatedEvents {
+  items: any[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export const api = {
   // Auth
   register: (body: any) => request<any>('/api/auth/register', 'POST', body),
   login: (body: any) => request<any>('/api/auth/login', 'POST', body),
   me: () => request<any>('/api/auth/me', 'GET'),
+  checkAvailability: (username?: string, email?: string) =>
+    request<{ usernameExists: boolean; emailExists: boolean }>(
+      `/api/auth/check-availability?username=${encodeURIComponent(username || '')}&email=${encodeURIComponent(email || '')}`,
+      'GET'
+    ),
 
   // Categories
   getCategories: () => request<any[]>('/api/categories', 'GET'),
@@ -67,14 +92,18 @@ export const api = {
   adminDeleteCategory: (id: string) => request<any>(`/api/admin/categories/${id}`, 'DELETE'),
 
   // Events
-  getEvents: (categoryId?: string, searchTerm?: string) => {
+  getEvents: (categoryId?: string, searchTerm?: string, status?: string, page?: number, pageSize?: number, organizerId?: string) => {
     let url = '/api/events';
     const params = new URLSearchParams();
     if (categoryId) params.append('categoryId', categoryId);
     if (searchTerm) params.append('searchTerm', searchTerm);
+    if (status) params.append('status', status);
+    if (page) params.append('page', page.toString());
+    if (pageSize) params.append('pageSize', pageSize.toString());
+    if (organizerId) params.append('organizerId', organizerId);
     const qs = params.toString();
     if (qs) url += `?${qs}`;
-    return request<any[]>(url, 'GET');
+    return request<PaginatedEvents>(url, 'GET');
   },
   getMapEvents: () => request<any[]>('/api/events/map', 'GET'),
   getEventById: (id: string) => request<any>(`/api/events/${id}`, 'GET'),
@@ -83,6 +112,11 @@ export const api = {
   deleteEvent: (id: string) => request<any>(`/api/events/${id}`, 'DELETE'),
   publishEvent: (id: string) => request<any>(`/api/events/${id}/publish`, 'POST'),
   cancelEvent: (id: string) => request<any>(`/api/events/${id}/cancel`, 'POST'),
+  uploadImage: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request<{ success?: boolean; data: { url: string } }>('/api/events/upload-image', 'POST', formData, true);
+  },
 
   // Bookings
   joinEvent: (eventId: string) => request<any>(`/api/bookings/${eventId}/join`, 'POST'),
@@ -93,12 +127,13 @@ export const api = {
   // Comments
   getComments: (eventId: string) => request<any[]>(`/api/events/${eventId}/comments`, 'GET'),
   createComment: (eventId: string, body: any) => request<any>(`/api/events/${eventId}/comments`, 'POST', body),
-  updateComment: (commentId: string, body: any) => request<any>(`/api/comments/${commentId}`, 'PUT', body),
-  deleteComment: (commentId: string) => request<any>(`/api/comments/${commentId}`, 'DELETE'),
+  updateComment: (eventId: string, commentId: string, body: any) => request<any>(`/api/events/${eventId}/comments/${commentId}`, 'PUT', body),
+  deleteComment: (eventId: string, commentId: string) => request<any>(`/api/events/${eventId}/comments/${commentId}`, 'DELETE'),
 
   // Admin Panel User actions
   adminGetUsers: () => request<any[]>('/api/admin/users', 'GET'),
-  adminBanUser: (userId: string) => request<any>(`/api/admin/users/${userId}/ban`, 'POST'),
+  adminBanUser: (userId: string) => request<any>(`/api/admin/users/${userId}/ban`, 'PATCH'),
+  adminUnbanUser: (userId: string) => request<any>(`/api/admin/users/${userId}/unban`, 'PATCH'),
   adminForceDeleteEvent: (id: string) => request<any>(`/api/admin/events/${id}`, 'DELETE'),
   adminForceDeleteComment: (id: string) => request<any>(`/api/admin/comments/${id}`, 'DELETE'),
 };

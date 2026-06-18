@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -6,6 +5,7 @@ using System.Threading.Tasks;
 using MediatR;
 using EventPlanner.Server.Domain.Enums;
 using EventPlanner.Server.Infrastructure.Repositories;
+using EventPlanner.Server.Common.Errors;
 
 namespace EventPlanner.Server.Features.Admin.GetUsers;
 
@@ -23,7 +23,7 @@ public class GetUsersHandler : IRequestHandler<GetUsersQuery, List<GetUsersRespo
         var admin = await _userRepository.GetByIdAsync(request.UserId);
         if (admin == null || admin.Role != UserRole.Admin)
         {
-            throw new Exception("Unauthorized. Only admins can view user list.");
+            throw new ForbiddenException("Only admins can view the user list.");
         }
 
         var users = await _userRepository.ListAsync();

@@ -1,9 +1,9 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using EventPlanner.Server.Domain.Enums;
 using EventPlanner.Server.Infrastructure.Repositories;
+using EventPlanner.Server.Common.Errors;
 
 namespace EventPlanner.Server.Features.Admin.UpdateCategory;
 
@@ -23,13 +23,13 @@ public class UpdateCategoryHandler : IRequestHandler<UpdateCategoryCommand, Upda
         var user = await _userRepository.GetByIdAsync(request.UserId);
         if (user == null || user.Role != UserRole.Admin)
         {
-            throw new Exception("Unauthorized. Only admins can update categories.");
+            throw new ForbiddenException("Only admins can update categories.");
         }
 
         var category = await _categoryRepository.GetByIdAsync(request.Id);
         if (category == null)
         {
-            throw new Exception("Category not found");
+            throw new NotFoundException("Category not found.");
         }
 
         category.Name = request.Name;
