@@ -58,6 +58,7 @@ obj/
 .vs/
 *.user
 *.suo
+*.jpg
 
 # Build output
 .vs/
