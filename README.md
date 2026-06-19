@@ -209,8 +209,7 @@ Event-Planner/
 ├── tests/
 │   ├── EventPlanner.UnitTests/        # handler tests with Moq'd repositories
 │   └── EventPlanner.IntegrationTests/  # WebApplicationFactory end-to-end checks
-├── docker-compose.yml             # alternative to Aspire: plain MongoDB + mongo-express container
-└── seed.js                        # standalone mongosh script to seed categories/sample data
+└── docker-compose.yml             # alternative to Aspire: plain MongoDB + mongo-express container
 ```
 
 ## Running it
@@ -235,12 +234,13 @@ This will:
 - start the Vite frontend and point its dev proxy at the API automatically,
 - open the **Aspire dashboard** (URL printed in the console, typically `https://localhost:17171`) where you can see logs, traces, and the live ports for every resource.
 
-The database seeds itself on first run with categories and two accounts:
+The database seeds itself on first run with categories and a single admin account:
 
 | Role | Email | Password |
 |---|---|---|
 | Admin | `admin@eventplanner.com` | `Admin123!` |
-| User | `user@eventplanner.com` | `User123!` |
+
+There's no pre-seeded regular user — register one through the signup form. Leave "I am an organizer" unchecked for a regular attendee account, or check it to get an Organizer account that can create and host events.
 
 **Without Aspire**, you have two options:
 
