@@ -44,6 +44,7 @@ builder.Services.AddDbContext<MongoDbContext>((sp, options) =>
 
     var connectionString =
         configuration.GetConnectionString("mongodb") ??
+        configuration.GetConnectionString("gather") ??
         configuration.GetConnectionString("eventplanner") ??
         Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") ??
         configuration["MongoDb:ConnectionString"];
@@ -73,10 +74,18 @@ builder.Services.AddSingleton<IMongoClient>(sp =>
     var configuration = sp.GetRequiredService<IConfiguration>();
     var connectionString =
         configuration.GetConnectionString("mongodb") ??
+        configuration.GetConnectionString("gather") ??
         configuration.GetConnectionString("eventplanner") ??
         Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") ??
-        configuration["MongoDb:ConnectionString"] ??
-        "mongodb://localhost:27017";
+        configuration["MongoDb:ConnectionString"];
+
+    if (string.IsNullOrEmpty(connectionString) ||
+        connectionString == "MONGODB_CONNECTION_STRING_PLACEHOLDER" ||
+        connectionString == "your_mongodb_connection_string_here")
+    {
+        connectionString = "mongodb://localhost:27017";
+    }
+
     return new MongoClient(connectionString);
 });
 

@@ -24,8 +24,7 @@ else
 
      // Fallback: spin up a local container (needs Docker)
      var mongodb = builder.AddMongoDB("mongodb")
-         .WithDataVolume()
-         .WithEndpoint(port: 27017, targetPort: 27017);
+         .WithDataVolume();
      db = mongodb.AddDatabase("gather");
 }
 
