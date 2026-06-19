@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎈 GatherPulse
+#  GatherPulse
 
 ### *Discover your next experience.*
 
@@ -226,8 +226,7 @@ cp .env.example .env   # fill in MONGODB_CONNECTION_STRING / JWT_SECRET if you h
 The simplest path is to let Aspire run everything:
 
 ```bash
-cd EventPlanner.AppHost
-dotnet run
+dotnet run --project EventPlanner.AppHost
 ```
 
 This will:
@@ -275,7 +274,7 @@ Runs the xUnit unit tests (handlers exercised against mocked repositories) and t
 
 Built as a group project for the Web Services course at TH Rosenheim.
 
-- **Didarul Alam Sourov** ([@dasourov](https://github.com/dasourov)) — project setup, backend architecture, auth, frontend integration
-- **Abhishek Bhardwaj** — Bookings & comments, use case diagram and unit testing
-- **Wiem** — API documentation, event category, systema architecture diagram & exception handling
-- **Jeel Sidpara** — event filtering, search & pagination
+- **Didarul Alam Sourov** ([@dasourov](https://github.com/dasourov)) —   Project setup, backend architecture, auth, frontend integration
+- **Abhishek Bhardwaj** ([@ssigmaxx](https://github.com/ssigmaxx)) — Bookings & comments, use case diagram and unit testing
+- **Wiem** ([@L-Wiem](https://github.com/L-Wiem)) — API documentation, event category, systema architecture diagram & exception handling
+- **Jeel Sidpara** ([@djeelsidpara2811](https://github.com/jeelsidpara2811)) — Event filtering, search, pagination and integration testing
