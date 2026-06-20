@@ -277,4 +277,4 @@ Built as a group project for the Web Services course at TH Rosenheim.
 - **Didarul Alam Sourov** ([@dasourov](https://github.com/dasourov)) —   Project setup, backend architecture, auth, frontend integration
 - **Abhishek Bhardwaj** ([@ssigmaxx](https://github.com/ssigmaxx)) — Bookings & comments, use case diagram and unit testing
 - **Wiem** ([@L-Wiem](https://github.com/L-Wiem)) — API documentation, event category, systema architecture diagram & exception handling
-- **Jeel Sidpara** ([@djeelsidpara2811](https://github.com/jeelsidpara2811)) — Event filtering, search, pagination and integration testing
+- **Jeel Sidpara** ([@jeelsidpara2811](https://github.com/jeelsidpara2811)) — Event filtering, search, pagination and integration testing
